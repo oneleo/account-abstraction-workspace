@@ -1,0 +1,24 @@
+{
+  "printWidth": 100,
+  "tabWidth": 4,
+  "semi": false,
+  "singleQuote": false,
+  "jsxSingleQuote": false,
+  "trailingComma": "all",
+  "bracketSpacing": true,
+  "overrides": [
+    {
+      "files": ["*.json", "*.yaml", "*.yml"],
+      "options": {
+        "tabWidth": 2
+      }
+    },
+    {
+      "files": ["*.tsx"],
+      "options": {
+        "printWidth": 160,
+        "semi": false
+      }
+    }
+  ]
+}
