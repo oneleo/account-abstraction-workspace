@@ -1,17 +1,14 @@
 import { useState, useCallback, useEffect } from "react"
 import { useMetaMask } from "../../hooks/useMetaMask"
-import { ethers, ContractFactory, Contract, ZeroAddress, BigNumberish } from "ethers"
+import { ethers, ZeroAddress, BigNumberish } from "ethers"
 // Import contract ABIs.
 import { abi as abiIERC20 } from "@openzeppelin/contracts/build/contracts/IERC20.json"
-import * as abiAggregatorV2V3Interface from "@chainlink/contracts/abi/v0.8/AggregatorV2V3Interface.json"
-import { abi as abiUsdtOracle, deployedBytecode as bytecodeUsdtOracle } from "../../abi/UsdtOracle.json"
-import { abi as abiEntryPoint, deployedBytecode as bytecodeEntryPoint } from "@account-abstraction/contracts/artifacts/EntryPoint.json"
-import { abi as abiDepositPaymaster, deployedBytecode as bytecodeDepositPaymaster } from "@account-abstraction/contracts/artifacts/DepositPaymaster.json"
-import {
-    abi as abiSimpleAccountFactory,
-    deployedBytecode as bytecodeSimpleAccountFactory,
-} from "@account-abstraction/contracts/artifacts/SimpleAccountFactory.json"
-import { abi as abiSimpleAccount, deployedBytecode as bytecodeSimpleAccount } from "@account-abstraction/contracts/artifacts/SimpleAccount.json"
+import abiAggregatorV2V3Interface from "@chainlink/contracts/abi/v0.8/AggregatorV2V3Interface.json"
+import { abi as abiUsdtOracle, bytecode as bytecodeUsdtOracle } from "../../abi/UsdtOracle.json"
+import { abi as abiEntryPoint, bytecode as bytecodeEntryPoint } from "@account-abstraction/contracts/artifacts/EntryPoint.json"
+import { abi as abiDepositPaymaster, bytecode as bytecodeDepositPaymaster } from "@account-abstraction/contracts/artifacts/DepositPaymaster.json"
+import { abi as abiSimpleAccountFactory, bytecode as bytecodeSimpleAccountFactory } from "@account-abstraction/contracts/artifacts/SimpleAccountFactory.json"
+import { abi as abiSimpleAccount, bytecode as bytecodeSimpleAccount } from "@account-abstraction/contracts/artifacts/SimpleAccount.json"
 export const DeployAA = () => {
     const { wallet, isConnecting, connectMetaMask } = useMetaMask()
     const [contractOwner, setContractOwner] = useState<string>(ZeroAddress)
@@ -38,12 +35,15 @@ export const DeployAA = () => {
         const admin = await provider.getSigner()
 
         const usdtAggregatorContract = new ethers.Contract(usdtEthChainlink, abiAggregatorV2V3Interface, provider)
-        console.log(abiAggregatorV2V3Interface)
-        // let factory = new ContractFactory(abiUsdtOracle, bytecodeUsdtOracle.object, admin)
 
-        // const usdtOracleContract = (await factory.deploy(usdtAggregatorContract)) as ethers.Contract
+        let factory = new ethers.ContractFactory(abiUsdtOracle, bytecodeUsdtOracle.object, admin)
 
-        // const usdtPrice = await usdtOracleContract.latestAnswer()
+        const usdtOracleContract = await factory.deploy(usdtAggregatorContract.getAddress())
+
+        console.log(await usdtOracleContract.getAddress())
+
+        const usdtPrice = await usdtOracleContract.latestAnswer()
+        console.log(usdtPrice)
 
         // const usdtContract = new ethers.Contract("0xdAC17F958D2ee523a2206206994597C13D831ec7", abiIERC20, provider)
 
@@ -51,7 +51,7 @@ export const DeployAA = () => {
         // const balance: BigNumberish = await usdtContract.balanceOf(ZeroAddress)
         // console.log("balance:", balance.toString())
         // // 更新状态
-        setTest(abiUsdtOracle.toString())
+        setTest(usdtPrice.toString())
     }
 
     // console.log("isMetamask:", window.ethereum?.isMetaMask)

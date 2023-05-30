@@ -12,14 +12,14 @@ contract UsdtOracle is IOracle {
     AggregatorV2V3Interface public immutable usdtAggregator;
     uint8 public immutable decimals;
 
-    constructor(AggregatorV2V3Interface _usdtAggregator) {
-        usdtAggregator = _usdtAggregator;
+    constructor(address _usdtAggregatorAddress) {
+        usdtAggregator = AggregatorV2V3Interface(_usdtAggregatorAddress);
         decimals = AggregatorV2V3Interface(usdtAggregator).decimals();
     }
 
     function latestAnswer() public view returns (uint256) {
         return
-            AggregatorV2V3Interface(usdtAggregator).latestAnswer().toUint256();
+            usdtAggregator.latestAnswer().toUint256();
     }
 
     function getTokenValueOfEth(

@@ -51,7 +51,7 @@ contract AddressTest is Test {
 
         // deploy the UsdtOracle contract
         vm.startPrank(oracleOwner, oracleOwner);
-        usdtOracle = new UsdtOracle(usdtAggregator);
+        usdtOracle = new UsdtOracle(address(usdtAggregator));
         vm.stopPrank();
 
         // deploy the EntryPoint contract
