@@ -6,7 +6,33 @@
 % pnpm install
 ```
 
-## 2. Foundry Test
+## 2. Install and start Ganache on localhost
+
+- Install Ganache CLI
+
+```shell
+% pnpm add --global ganache-cli
+```
+
+- Start Ganache on the localhost
+
+```
+% MAINNET_NODE_RPC_URL="https://eth-mainnet.alchemyapi.io/v2/<YOUR_ALCHEMY_KEY>" && echo $MAINNET_NODE_RPC_URL
+
+% BLOCKN_UMBER="16666666" && echo $BLOCKN_UMBER
+
+% MNEMONIC="test test test test test test test test test test test junk" && echo $MNEMONIC
+
+% ganache-cli --fork "$MAINNET_NODE_RPC_URL"@"$BLOCKN_UMBER" --mnemonic "$MNEMONIC"
+```
+
+## 3. Deploy AA contracts to the localhost node
+
+```
+% pnpm --filter hardhat hardhat run scripts/deployAA.ts --network ganache
+```
+
+## 4. Foundry Test
 
 - Set environment variables and run the Foundry test
 

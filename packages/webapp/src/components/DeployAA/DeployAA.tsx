@@ -40,10 +40,10 @@ export const DeployAA = () => {
 
         const usdtOracleContract = await factory.deploy(usdtAggregatorContract.getAddress())
 
-        console.log(await usdtOracleContract.getAddress())
+        // console.log(await usdtOracleContract.getAddress())
 
         const usdtPrice = await usdtOracleContract.latestAnswer()
-        console.log(usdtPrice)
+        // console.log(usdtPrice)
 
         // const usdtContract = new ethers.Contract("0xdAC17F958D2ee523a2206206994597C13D831ec7", abiIERC20, provider)
 
