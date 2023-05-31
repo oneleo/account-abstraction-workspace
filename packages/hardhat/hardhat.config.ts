@@ -21,15 +21,16 @@ const config: HardhatUserConfig = {
       chainId: 5,
       accounts,
     },
+    // Running Hardhat node with the following settings.
     hardhat: {
-      chainId: 1,
+      chainId: 1337,
       accounts,
       forking: {
         url: `https://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_TOKEN}`,
         blockNumber: 16666666,
       },
     },
-    ganache: {
+    localhost: {
       url: `http://127.0.0.1:8545`,
       chainId: 1337,
       accounts,

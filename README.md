@@ -6,31 +6,40 @@
 % pnpm install
 ```
 
-## 2. Install and start Ganache on localhost
+## 2. Install and start Hardhat node on localhost
 
-- Install Ganache CLI
+- Set Hardhat environment
 
 ```shell
-% pnpm add --global ganache-cli
+% cp .env.example .env
+% code .env
+
+### Edit .env
+ALCHEMY_TOKEN="Created_by_https://www.alchemy.com/"
+###
 ```
 
-- Start Ganache on the localhost
+- Start Hardhat node and deploy AA contracts
 
 ```
-% MAINNET_NODE_RPC_URL="https://eth-mainnet.alchemyapi.io/v2/<YOUR_ALCHEMY_KEY>" && echo $MAINNET_NODE_RPC_URL
-
-% BLOCKN_UMBER="16666666" && echo $BLOCKN_UMBER
-
-% MNEMONIC="test test test test test test test test test test test junk" && echo $MNEMONIC
-
-% ganache-cli --fork "$MAINNET_NODE_RPC_URL"@"$BLOCKN_UMBER" --mnemonic "$MNEMONIC"
+% pnpm --filter hardhat start:aa
 ```
 
-## 3. Deploy AA contracts to the localhost node
+- The list of AA contracts owned by Hardhat default signers[9]
 
-```
-% pnpm --filter hardhat hardhat run scripts/deployAA.ts --network ganache
-```
+| Contract Name       | Contract Address                           |
+| ------------------- | ------------------------------------------ |
+| UsdtOracle          | 0xe1DA8919f262Ee86f9BE05059C9280142CF23f48 |
+| EntryPoint          | 0x0C8E79F3534B00D9a3D4a856B665Bf4eBC22f2ba |
+| Paymaster           | 0xeD1DB453C3156Ff3155a97AD217b3087D5Dc5f6E |
+| AccountFactory      | 0x12975173B87F7595EE45dFFb2Ab812ECE596Bf84 |
+| AccountFactoryProxy | 0x82Dc47734901ee7d4f4232f398752cB9Dd5dACcC |
+
+- The Account contract owned by Hardhat default signers[0]
+
+| Contract Name | Contract Address                           |
+| ------------- | ------------------------------------------ |
+| Account       | 0x4FBF49dd7A7c07a89Ddf0AD6C5Dc449786BD12Ed |
 
 ## 4. Foundry Test
 
