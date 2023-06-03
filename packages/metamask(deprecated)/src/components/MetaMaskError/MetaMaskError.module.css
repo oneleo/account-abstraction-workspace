@@ -1,0 +1,16 @@
+/* MetaMaskError.module.css */
+
+/* 模組樣式設定 */
+
+.metaMaskError {
+    padding: 1rem;
+    color: white;
+    background-color: #f0f0f0;
+    cursor: pointer;
+}
+
+.metaMaskError strong {
+    font-weight: bold;
+}
+
+/* 其他模組樣式設定 */

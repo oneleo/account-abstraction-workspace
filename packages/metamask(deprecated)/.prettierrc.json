@@ -12,6 +12,13 @@
       "options": {
         "tabWidth": 2
       }
+    },
+    {
+      "files": ["*.tsx", "*.css"],
+      "options": {
+        "printWidth": 160,
+        "semi": false
+      }
     }
   ]
 }

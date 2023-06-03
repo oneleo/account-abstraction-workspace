@@ -1,4 +1,0 @@
-@account-abstraction/=node_modules/@account-abstraction
-@openzeppelin/=node_modules/@openzeppelin
-@chainlink/=node_modules/@chainlink
-forge-std/=lib/forge-std/src

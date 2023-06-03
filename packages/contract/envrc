@@ -1,7 +1,0 @@
-# https://etherscan.io/address/0xdAC17F958D2ee523a2206206994597C13D831ec7
-
-export USDT_ADDRESS="0xdAC17F958D2ee523a2206206994597C13D831ec7"
-
-# https://data.chain.link/ethereum/mainnet/stablecoins/usdt-eth
-
-export USDT_ETH_CHAINLINK="0xEe9F2375b4bdF6387aa8265dD4FB8F16512A1d46"

@@ -1,0 +1,52 @@
+/* Navigation.module.css */
+
+/* 模組樣式設定 */
+
+.navigation {
+    background-color: #ffffff;
+    padding: 1rem;
+}
+
+.flexContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.leftNav {
+    font-weight: bold;
+}
+
+.rightNav {
+    display: flex;
+    align-items: center;
+}
+
+button {
+    margin-left: 1rem;
+}
+
+.text_link {
+    color: blue;
+    text-decoration: underline;
+}
+
+.tooltip-bottom {
+    position: relative;
+}
+
+.tooltip-bottom::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.25rem;
+    background-color: rgba(0, 0, 0, 0.75);
+    color: white;
+    font-size: 12px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+/* 其他模組樣式設定 */

@@ -1,0 +1,6 @@
+export const UsdtOracle = "0xe1DA8919f262Ee86f9BE05059C9280142CF23f48"
+export const EntryPoint = "0x0C8E79F3534B00D9a3D4a856B665Bf4eBC22f2ba"
+export const Paymaster = "0xDd8cb59289bF7e324a37F74f8abB16D9F133cb2e"
+export const AccountFactory = "0xeD1DB453C3156Ff3155a97AD217b3087D5Dc5f6E"
+export const AccountFactoryProxy = "0xf7Cd8fa9b94DB2Aa972023b379c7f72c65E4De9D"
+export const Account = "0xF16D0B4a4332237454D0ee4278968188739C6eED"
