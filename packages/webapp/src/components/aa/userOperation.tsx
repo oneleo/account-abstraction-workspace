@@ -1,9 +1,13 @@
 import * as React from "react"
-import * as Ethers6 from "ethers"
+import * as Ethers5 from "ethers"
 import * as UserOp from "userop"
-import * as Address from "./addressea"
+import * as Addresses from "./addressea"
+import * as TypesEntryPointFactory from "@/../typechain-types/@account-abstraction/contracts/factories/EntryPoint__factory"
+import * as TypesEntryPoint from "@/../typechain-types/@account-abstraction/contracts/EntryPoint"
 
-const debug = false
+import "./aa.css"
+
+const debug = true
 
 // 不能放在 UserOperation 函數裡，不然每次 ReRender 時都會產生一個新的、預設值的 UserOperation
 const defaultBuilder = new UserOp.UserOperationBuilder()
@@ -17,14 +21,16 @@ export const UserOperation = () => {
             return
         }
 
-        const provider = new Ethers6.BrowserProvider(window.ethereum)
+        const provider = new Ethers5.providers.Web3Provider(window.ethereum)
         const signer = await provider.getSigner()
         // 參考：https://github.com/stackup-wallet/userop.js/blob/main/src/preset/builder/simpleAccount.ts#L86-L88
-        const data = await signer.signMessage(Ethers6.getBytes(Ethers6.keccak256("0xdead")))
+        const data = await signer.signMessage(
+            Ethers5.utils.arrayify(Ethers5.utils.keccak256("0xdead")),
+        )
         // 如果按下 handleAddress 鈕，將 builder 設為 Address 的預設值
         defaultBuilder.resetOp()
         defaultBuilder.setPartial({
-            sender: Address.Account,
+            sender: Addresses.Account,
             signature: data,
         })
 
@@ -33,20 +39,22 @@ export const UserOperation = () => {
         })
         setBuilder(newBuilder)
 
-        debugConsoleLog(builder.getOp())
+        debugConsoleLogUserOp(builder.getOp())
     }
 
     const handleTransfer = async () => {
         if (!window.ethereum) {
             return
         }
-        const provider = new Ethers6.BrowserProvider(window.ethereum)
+        const provider = new Ethers5.providers.Web3Provider(window.ethereum)
         const signer = await provider.getSigner()
-        const data = await signer.signMessage(Ethers6.getBytes(Ethers6.keccak256("0xdead")))
+        const data = await signer.signMessage(
+            Ethers5.utils.arrayify(Ethers5.utils.keccak256("0xdead")),
+        )
         // 如果按下 handleAddress 鈕，將 builder 設為 Transfer 的預設值
         defaultBuilder.resetOp()
         defaultBuilder.setPartial({
-            sender: Address.Account,
+            sender: Addresses.Account,
             signature: data,
         })
 
@@ -55,13 +63,69 @@ export const UserOperation = () => {
         })
         setBuilder(newBuilder)
 
-        debugConsoleLog(builder.getOp())
+        debugConsoleLogUserOp(builder.getOp())
     }
 
-    const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
+        if (!window.ethereum) {
+            return
+        }
 
-        // 執行相應的處理函數
+        const provider = new Ethers5.providers.Web3Provider(window.ethereum)
+        const signer = await provider.getSigner()
+        const addrSigner = await signer.getAddress()
+
+        // Declare the gas overrides argument.
+        const gasOverrides: Ethers5.Overrides = {
+            gasLimit: Ethers5.BigNumber.from(5000000),
+            gasPrice: (await provider.getFeeData()).gasPrice || Ethers5.BigNumber.from(0),
+            nonce: Ethers5.BigNumber.from(9),
+            // maxFeePerGas: (await provider.getFeeData()).maxFeePerGas || Ethers5.BigNumber.from(0),
+            // maxPriorityFeePerGas:
+            //     (await provider.getFeeData()).maxPriorityFeePerGas || Ethers5.BigNumber.from(0),
+        }
+
+        const contractEntryPoint = TypesEntryPointFactory.EntryPoint__factory.connect(
+            Addresses.EntryPoint,
+            signer,
+        )
+
+        if (debug) {
+            console.log(`// [debug] Signer Address:`, addrSigner)
+            console.log(`// [debug] Chain Id:`, await signer.getChainId())
+        }
+
+        // const userOp: TypesEntryPoint.UserOperationStruct = {
+        //     sender: builder.getSender(),
+        //     nonce: builder.getNonce(),
+        //     initCode: builder.getInitCode(),
+        //     callData: builder.getCallData(),
+        //     callGasLimit: builder.getCallGasLimit(),
+        //     verificationGasLimit: builder.getVerificationGasLimit(),
+        //     preVerificationGas: builder.getPreVerificationGas(),
+        //     maxFeePerGas: builder.getMaxFeePerGas(),
+        //     maxPriorityFeePerGas: builder.getMaxPriorityFeePerGas(),
+        //     paymasterAndData: builder.getPaymasterAndData(),
+        //     signature: builder.getSender(),
+        // }
+
+        const userOp: TypesEntryPoint.UserOperationStruct = { ...builder.getOp() }
+
+        debugConsoleLogUserOp(userOp)
+
+        const writeTransaction: Ethers5.ContractTransaction =
+            await contractEntryPoint.simulateHandleOp(userOp, addrSigner, "0x", gasOverrides)
+
+        // const writeTransaction: Ethers5.ContractTransaction = await contractEntryPoint.handleOps(
+        //     [userOp],
+        //     addrSigner,
+        //     gasOverrides,
+        // )
+
+        if (debug) {
+            console.log(`// [debug] Paymaster.deposit():`, JSON.stringify(writeTransaction))
+        }
     }
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,12 +144,12 @@ export const UserOperation = () => {
                     break
                 case "initCode":
                     defaultBuilder.setPartial({
-                        initCode: Ethers6.getBytes(value.toString()),
+                        initCode: Ethers5.utils.arrayify(value.toString()),
                     })
                     break
                 case "callData":
                     defaultBuilder.setPartial({
-                        callData: Ethers6.getBytes(value.toString()),
+                        callData: Ethers5.utils.arrayify(value.toString()),
                     })
                     break
                 case "callGasLimit":
@@ -115,12 +179,12 @@ export const UserOperation = () => {
                     break
                 case "paymasterAndData":
                     defaultBuilder.setPartial({
-                        paymasterAndData: Ethers6.getBytes(value.toString()),
+                        paymasterAndData: Ethers5.utils.arrayify(value.toString()),
                     })
                     break
                 case "signature":
                     defaultBuilder.setPartial({
-                        signature: Ethers6.getBytes(value.toString()),
+                        signature: Ethers5.utils.arrayify(value.toString()),
                     })
                     break
                 default:
@@ -136,124 +200,126 @@ export const UserOperation = () => {
         })
         setBuilder(newBuilder)
 
-        debugConsoleLog(builder.getOp())
+        debugConsoleLogUserOp(builder.getOp())
     }
 
     const aaForm = (userOp: UserOp.IUserOperation) => {
         return (
             <>
                 <form onSubmit={handleSubmit}>
-                    <div>
-                        <label>Sender:</label>
-                        <input
-                            type="text"
-                            id="sender"
-                            placeholder="請點選輸入"
-                            value={`${userOp.sender}`}
-                            onChange={handleChange}
-                        />
+                    <div className="form-input">
+                        <div>
+                            <label>Sender:</label>
+                            <input
+                                type="text"
+                                id="sender"
+                                placeholder="請點選輸入"
+                                value={`${userOp.sender}`}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div>
+                            <label>Nonce:</label>
+                            <input
+                                type="text"
+                                id="nonce"
+                                placeholder="請點選輸入"
+                                value={`${userOp.nonce}`}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div>
+                            <label>Init Code:</label>
+                            <input
+                                type="text"
+                                id="initCode"
+                                placeholder="請點選輸入"
+                                value={`${userOp.initCode}`}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div>
+                            <label>Call Data:</label>
+                            <input
+                                type="text"
+                                id="callData"
+                                placeholder="請點選輸入"
+                                value={`${userOp.callData}`}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div>
+                            <label>Call Gas Limit:</label>
+                            <input
+                                type="text"
+                                id="callGasLimit"
+                                placeholder="請點選輸入"
+                                value={`${userOp.callGasLimit}`}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div>
+                            <label>Verification Gas Limit:</label>
+                            <input
+                                type="text"
+                                id="verificationGasLimit"
+                                placeholder="請點選輸入"
+                                value={`${userOp.verificationGasLimit}`}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div>
+                            <label>Pre-Verification Gas:</label>
+                            <input
+                                type="text"
+                                id="preVerificationGas"
+                                placeholder="請點選輸入"
+                                value={`${userOp.preVerificationGas}`}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div>
+                            <label>Max Fee Per Gas:</label>
+                            <input
+                                type="text"
+                                id="maxFeePerGas"
+                                placeholder="請點選輸入"
+                                value={`${userOp.maxFeePerGas}`}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div>
+                            <label>Max Priority Fee Per Gas:</label>
+                            <input
+                                type="text"
+                                id="maxPriorityFeePerGas"
+                                placeholder="請點選輸入"
+                                value={`${userOp.maxPriorityFeePerGas}`}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div>
+                            <label>Paymaster and Data:</label>
+                            <input
+                                type="text"
+                                id="paymasterAndData"
+                                placeholder="請點選輸入"
+                                value={`${userOp.paymasterAndData}`}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div>
+                            <label>Signature:</label>
+                            <input
+                                type="text"
+                                id="signature"
+                                placeholder="請點選輸入"
+                                value={`${userOp.signature}`}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        {error && <text className="Error">{`error: ${error}`}</text>}
                     </div>
-                    <div>
-                        <label>Nonce:</label>
-                        <input
-                            type="text"
-                            id="nonce"
-                            placeholder="請點選輸入"
-                            value={`${userOp.nonce}`}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    <div>
-                        <label>Init Code:</label>
-                        <input
-                            type="text"
-                            id="initCode"
-                            placeholder="請點選輸入"
-                            value={`${userOp.initCode}`}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    <div>
-                        <label>Call Data:</label>
-                        <input
-                            type="text"
-                            id="callData"
-                            placeholder="請點選輸入"
-                            value={`${userOp.callData}`}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    <div>
-                        <label>Call Gas Limit:</label>
-                        <input
-                            type="text"
-                            id="callGasLimit"
-                            placeholder="請點選輸入"
-                            value={`${userOp.callGasLimit}`}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    <div>
-                        <label>Verification Gas Limit:</label>
-                        <input
-                            type="text"
-                            id="verificationGasLimit"
-                            placeholder="請點選輸入"
-                            value={`${userOp.verificationGasLimit}`}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    <div>
-                        <label>Pre-Verification Gas:</label>
-                        <input
-                            type="text"
-                            id="preVerificationGas"
-                            placeholder="請點選輸入"
-                            value={`${userOp.preVerificationGas}`}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    <div>
-                        <label>Max Fee Per Gas:</label>
-                        <input
-                            type="text"
-                            id="maxFeePerGas"
-                            placeholder="請點選輸入"
-                            value={`${userOp.maxFeePerGas}`}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    <div>
-                        <label>Max Priority Fee Per Gas:</label>
-                        <input
-                            type="text"
-                            id="maxPriorityFeePerGas"
-                            placeholder="請點選輸入"
-                            value={`${userOp.maxPriorityFeePerGas}`}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    <div>
-                        <label>Paymaster and Data:</label>
-                        <input
-                            type="text"
-                            id="paymasterAndData"
-                            placeholder="請點選輸入"
-                            value={`${userOp.paymasterAndData}`}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    <div>
-                        <label>Signature:</label>
-                        <input
-                            type="text"
-                            id="signature"
-                            placeholder="請點選輸入"
-                            value={`${userOp.signature}`}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    {error && <text className="Error">{`error: ${error}`}</text>}
                     <div>
                         <input type="submit" value="Submit" />
                     </div>
@@ -273,8 +339,8 @@ export const UserOperation = () => {
     )
 }
 
-const debugConsoleLog = (userOp: UserOp.IUserOperation) => {
-    if (debug === true) {
+const debugConsoleLogUserOp = (userOp: UserOp.IUserOperation) => {
+    if (debug) {
         console.log(`// [Debug Log] UserOp: ${JSON.stringify(userOp)}`)
     }
 }

@@ -18,7 +18,7 @@ export const Metamask = () => {
 
     useEffect(() => {
         //get ETH balance and network info only when having currentAccount
-        if (!currentAccount || !ethers.isAddress(currentAccount)) return
+        if (!currentAccount || !ethers.utils.isAddress(currentAccount)) return
 
         //client side code
         if (!window.ethereum) {
@@ -26,18 +26,18 @@ export const Metamask = () => {
             return
         }
 
-        const provider = new ethers.BrowserProvider(window.ethereum)
+        const provider = new ethers.providers.Web3Provider(window.ethereum)
         provider
             .getBalance(currentAccount)
             .then((result) => {
-                setBalance(ethers.formatEther(result))
+                setBalance(ethers.utils.formatEther(result))
             })
             .catch((e) => console.log(e))
 
         provider
             .getNetwork()
             .then((result) => {
-                setChainId(result.chainId)
+                setChainId(BigInt(result.chainId))
                 setChainName(result.name)
             })
             .catch((e) => console.log(e))
@@ -61,7 +61,7 @@ export const Metamask = () => {
     */
 
         //we can do it using ethers.js
-        const provider = new ethers.BrowserProvider(window.ethereum)
+        const provider = new ethers.providers.Web3Provider(window.ethereum)
         provider
             .send("eth_requestAccounts", [])
             .then((accounts) => {

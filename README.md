@@ -48,9 +48,10 @@ It will start up at [http://localhost:8545](http://localhost:8545).
 - Start a React service on localhost
 
 ```shell
+% pnpm --filter ${PKG1} typechain
 % PKG1="webapp" && pnpm --filter ${PKG1} dev
 ```
 
-It will start up at [http://localhost:3000](http://localhost:3000).
+It will start up at [http://localhost:3000/account-abstraction](http://localhost:3000/account-abstraction).
 
 :notebook_with_decorative_cover: Please note that it is necessary to install the [Metamask](https://metamask.io/download/) extension on your browser.
