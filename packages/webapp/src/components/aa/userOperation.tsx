@@ -5,6 +5,11 @@ import * as Addresses from "./addressea"
 import * as TypesEntryPointFactory from "@/../typechain-types/@account-abstraction/contracts/factories/EntryPoint__factory"
 import * as TypesEntryPoint from "@/../typechain-types/@account-abstraction/contracts/EntryPoint"
 
+import {
+    abi as abiAccount,
+    bytecode as bytecodeAccount,
+} from "@account-abstraction/contracts/artifacts/SimpleAccount.json"
+
 import "./aa.css"
 
 const debug = true
@@ -22,16 +27,38 @@ export const UserOperation = () => {
         }
 
         const provider = new Ethers5.providers.Web3Provider(window.ethereum)
-        const signer = await provider.getSigner()
+        const signer = provider.getSigner()
         // 參考：https://github.com/stackup-wallet/userop.js/blob/main/src/preset/builder/simpleAccount.ts#L86-L88
-        const data = await signer.signMessage(
-            Ethers5.utils.arrayify(Ethers5.utils.keccak256("0xdead")),
-        )
+        // 注意：使用 signMessage() 簽名時，會自動將 hash 加入「\x19Ethereum Signed Message:\n32」字串，重新 hash 後，再進行簽名
+        // const data = await signer.signMessage(
+        //     Ethers5.utils.arrayify(Ethers5.utils.keccak256("0xdead")),
+        // )
+        const userOpHash = new UserOp.UserOperationMiddlewareCtx(
+            defaultBuilder.getOp(),
+            Addresses.EntryPoint,
+            await provider.getSigner().getChainId(), //1337
+        ).getUserOpHash()
+
+        // const userOpHashEth = Ethers5.utils.keccak256(
+        //     Ethers5.utils.solidityPack(
+        //         ["string", "bytes32"],
+        //         ["\x19Ethereum Signed Message:\n32", userOpHash],
+        //     ),
+        // )
+        // const userOpHashEth2 = Ethers5.utils.solidityKeccak256(
+        //     ["string", "bytes32"],
+        //     ["\x19Ethereum Signed Message:\n32", userOpHash],
+        // )
+        // console.log(`userOpHashEth: ${userOpHashEth}`)
+        // console.log(`userOpHashEth2: ${userOpHashEth2}`)
+
+        const sig = await signer.signMessage(Ethers5.utils.arrayify(userOpHash))
+
         // 如果按下 handleAddress 鈕，將 builder 設為 Address 的預設值
         defaultBuilder.resetOp()
         defaultBuilder.setPartial({
             sender: Addresses.Account,
-            signature: data,
+            signature: sig,
         })
 
         const newBuilder = new UserOp.UserOperationBuilder().setPartial({
@@ -47,21 +74,57 @@ export const UserOperation = () => {
             return
         }
         const provider = new Ethers5.providers.Web3Provider(window.ethereum)
-        const signer = await provider.getSigner()
-        const data = await signer.signMessage(
-            Ethers5.utils.arrayify(Ethers5.utils.keccak256("0xdead")),
-        )
+        const signer = provider.getSigner()
+
+        const ifaceAccount = new Ethers5.utils.Interface(abiAccount)
+        const callData = ifaceAccount.encodeFunctionData("execute", [
+            Addresses.signers7,
+            Ethers5.utils.parseEther("0.5"),
+            Ethers5.utils.arrayify("0x"),
+        ])
+
+        const test = defaultBuilder.useMiddleware(UserOp.Presets.Middleware.EOASignature(signer))
+        // const test = defaultBuilder.console.log("test", UserOp.Utils.OpToJSON(test.getOp()))
+        const userOpHash = new UserOp.UserOperationMiddlewareCtx(
+            defaultBuilder.getOp(),
+            Addresses.EntryPoint,
+            await provider.getSigner().getChainId(),
+        ).getUserOpHash()
+        console.log(`userOpHash: ${userOpHash}`)
+
+        // const userOpHashEth1 = Ethers5.utils.keccak256(
+        //     Ethers5.utils.solidityPack(
+        //         ["string", "bytes32"],
+        //         ["\x19Ethereum Signed Message:\n32", userOpHash],
+        //     ),
+        // )
+        // const userOpHashEth2 = Ethers5.utils.solidityKeccak256(["bytes32"], [userOpHash])
+
+        // console.log(`userOpHashEth1: ${userOpHashEth1}`)
+        // console.log(`userOpHashEth2: ${userOpHashEth2}`)
+
+        // 注意：使用 signMessage() 簽名時，會自動將 hash 加入「\x19Ethereum Signed Message:\n32」字串，重新 hash 後，再進行簽名
+        const data = await signer.signMessage(Ethers5.utils.arrayify(userOpHash))
+
         // 如果按下 handleAddress 鈕，將 builder 設為 Transfer 的預設值
         defaultBuilder.resetOp()
         defaultBuilder.setPartial({
             sender: Addresses.Account,
+            callData: callData,
             signature: data,
         })
 
         const newBuilder = new UserOp.UserOperationBuilder().setPartial({
             ...defaultBuilder.getOp(),
         })
+
         setBuilder(newBuilder)
+
+        // const ifaceEntryPoint = TypesEntryPointFactory.EntryPoint__factory.createInterface()
+        // const funcEntryPoint = ifaceEntryPoint.functions
+
+        // const sigExecute = ifaceAccount.getSighash(ifaceAccount.getFunction("execute"))
+        // const test = ifaceAccount.getFunction("execute")
 
         debugConsoleLogUserOp(builder.getOp())
     }
@@ -73,7 +136,7 @@ export const UserOperation = () => {
         }
 
         const provider = new Ethers5.providers.Web3Provider(window.ethereum)
-        const signer = await provider.getSigner()
+        const signer = provider.getSigner()
         const addrSigner = await signer.getAddress()
 
         // Declare the gas overrides argument.
@@ -92,40 +155,40 @@ export const UserOperation = () => {
         )
 
         if (debug) {
-            console.log(`// [debug] Signer Address:`, addrSigner)
-            console.log(`// [debug] Chain Id:`, await signer.getChainId())
+            console.log(`// [debug] Signer Address: ${addrSigner}`)
+            console.log(`// [debug] Chain Id: ${await signer.getChainId()}`)
         }
-
-        // const userOp: TypesEntryPoint.UserOperationStruct = {
-        //     sender: builder.getSender(),
-        //     nonce: builder.getNonce(),
-        //     initCode: builder.getInitCode(),
-        //     callData: builder.getCallData(),
-        //     callGasLimit: builder.getCallGasLimit(),
-        //     verificationGasLimit: builder.getVerificationGasLimit(),
-        //     preVerificationGas: builder.getPreVerificationGas(),
-        //     maxFeePerGas: builder.getMaxFeePerGas(),
-        //     maxPriorityFeePerGas: builder.getMaxPriorityFeePerGas(),
-        //     paymasterAndData: builder.getPaymasterAndData(),
-        //     signature: builder.getSender(),
-        // }
 
         const userOp: TypesEntryPoint.UserOperationStruct = { ...builder.getOp() }
 
         debugConsoleLogUserOp(userOp)
 
-        const writeTransaction: Ethers5.ContractTransaction =
-            await contractEntryPoint.simulateHandleOp(userOp, addrSigner, "0x", gasOverrides)
+        let writeTransaction: Ethers5.ContractTransaction
 
-        // const writeTransaction: Ethers5.ContractTransaction = await contractEntryPoint.handleOps(
-        //     [userOp],
-        //     addrSigner,
-        //     gasOverrides,
-        // )
+        // try {
+        //     writeTransaction = await contractEntryPoint.simulateHandleOp(
+        //         userOp,
+        //         addrSigner,
+        //         "0x",
+        //         gasOverrides,
+        //     )
+        // } catch (err: unknown) {
+        //     resolveErrorMsg(err as Error)
+        // }
 
-        if (debug) {
-            console.log(`// [debug] Paymaster.deposit():`, JSON.stringify(writeTransaction))
+        try {
+            writeTransaction = await contractEntryPoint.handleOps(
+                [userOp],
+                addrSigner,
+                gasOverrides,
+            )
+        } catch (err: unknown) {
+            resolveErrorMsg(err as Error)
         }
+
+        // if (debug) {
+        //     console.log(`// [debug] Paymaster.deposit():`, JSON.stringify(writeTransaction))
+        // }
     }
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -342,5 +405,41 @@ export const UserOperation = () => {
 const debugConsoleLogUserOp = (userOp: UserOp.IUserOperation) => {
     if (debug) {
         console.log(`// [Debug Log] UserOp: ${JSON.stringify(userOp)}`)
+    }
+}
+
+const resolveErrorMsg = (err: Error) => {
+    if (debug) {
+        const message = err.message.toString()
+        const regex = /return data: (0x[0-9a-fA-F]+)/
+        const match = message.match(regex)
+        const data = match ? match[1] : ""
+
+        const method = Ethers5.utils.hexDataSlice(data, 0, 4)
+        const parms = Ethers5.utils.hexDataSlice(data, 4)
+
+        const errorExecutionResult = Ethers5.utils
+            .id("ExecutionResult(uint256,uint256,uint48,uint48,bool,bytes)")
+            .substring(0, 10) // 0x8b7ac980
+        const errorFailedOp = Ethers5.utils.id("FailedOp(uint256,string)").substring(0, 10) // 0x220266b6
+
+        let output
+        switch (method.toString()) {
+            case errorExecutionResult:
+                output = Ethers5.utils.defaultAbiCoder.decode(
+                    ["uint256", "uint256", "uint48", "uint48", "bool", "bytes"],
+                    parms,
+                )
+                break
+            case errorFailedOp:
+                output = Ethers5.utils.defaultAbiCoder.decode(["uint256", "string"], parms)
+                break
+            default:
+                // 如果前缀不匹配任何情况，则执行其他操作
+                output = parms
+                break
+        }
+
+        console.log(`// [Error] ${JSON.stringify(output)}`)
     }
 }
