@@ -26,6 +26,12 @@ export const UserOperation = () => {
             return
         }
 
+        // 如果按下 handleAddress 鈕，將 builder 設為 Address 的預設值
+        defaultBuilder.resetOp()
+        defaultBuilder.setPartial({
+            sender: Addresses.Account,
+        })
+
         const provider = new Ethers5.providers.Web3Provider(window.ethereum)
         const signer = provider.getSigner()
         // 參考：https://github.com/stackup-wallet/userop.js/blob/main/src/preset/builder/simpleAccount.ts#L86-L88
@@ -35,9 +41,11 @@ export const UserOperation = () => {
         // )
         const userOpHash = new UserOp.UserOperationMiddlewareCtx(
             defaultBuilder.getOp(),
-            Addresses.EntryPoint,
+            Addresses.signers7,
             await provider.getSigner().getChainId(), //1337
         ).getUserOpHash()
+
+        console.log(`userOpHash: ${userOpHash}`)
 
         // const userOpHashEth = Ethers5.utils.keccak256(
         //     Ethers5.utils.solidityPack(
@@ -54,8 +62,6 @@ export const UserOperation = () => {
 
         const sig = await signer.signMessage(Ethers5.utils.arrayify(userOpHash))
 
-        // 如果按下 handleAddress 鈕，將 builder 設為 Address 的預設值
-        defaultBuilder.resetOp()
         defaultBuilder.setPartial({
             sender: Addresses.Account,
             signature: sig,
@@ -82,15 +88,10 @@ export const UserOperation = () => {
             Ethers5.utils.parseEther("0.5"),
             Ethers5.utils.arrayify("0x"),
         ])
+        // console.log(`callData: ${callData}`)
 
-        const test = defaultBuilder.useMiddleware(UserOp.Presets.Middleware.EOASignature(signer))
+        // const test = defaultBuilder.useMiddleware(UserOp.Presets.Middleware.EOASignature(signer))
         // const test = defaultBuilder.console.log("test", UserOp.Utils.OpToJSON(test.getOp()))
-        const userOpHash = new UserOp.UserOperationMiddlewareCtx(
-            defaultBuilder.getOp(),
-            Addresses.EntryPoint,
-            await provider.getSigner().getChainId(),
-        ).getUserOpHash()
-        console.log(`userOpHash: ${userOpHash}`)
 
         // const userOpHashEth1 = Ethers5.utils.keccak256(
         //     Ethers5.utils.solidityPack(
@@ -104,18 +105,38 @@ export const UserOperation = () => {
         // console.log(`userOpHashEth2: ${userOpHashEth2}`)
 
         // 注意：使用 signMessage() 簽名時，會自動將 hash 加入「\x19Ethereum Signed Message:\n32」字串，重新 hash 後，再進行簽名
-        const data = await signer.signMessage(Ethers5.utils.arrayify(userOpHash))
 
         // 如果按下 handleAddress 鈕，將 builder 設為 Transfer 的預設值
-        defaultBuilder.resetOp()
-        defaultBuilder.setPartial({
+        const builder = defaultBuilder.resetOp().setPartial({
             sender: Addresses.Account,
             callData: callData,
-            signature: data,
+        })
+
+        debugConsoleLogUserOp(builder.getOp())
+
+        const userOp = await builder.buildOp(
+            Addresses.EntryPoint,
+            await provider.getSigner().getChainId(),
+        )
+
+        const userOpHash = new UserOp.UserOperationMiddlewareCtx(
+            //userOp,
+            builder.getOp(),
+            Addresses.EntryPoint,
+            await provider.getSigner().getChainId(),
+        ).getUserOpHash()
+
+        console.log(`userOpHash: ${userOpHash}`)
+        const sig = await signer.signMessage(Ethers5.utils.arrayify(userOpHash))
+        console.log(`sig: ${sig}`)
+        // const op = await UserOp.Client.buildUserOperation(builder)
+
+        builder.setPartial({
+            signature: sig,
         })
 
         const newBuilder = new UserOp.UserOperationBuilder().setPartial({
-            ...defaultBuilder.getOp(),
+            ...builder.getOp(),
         })
 
         setBuilder(newBuilder)
@@ -126,9 +147,53 @@ export const UserOperation = () => {
         // const sigExecute = ifaceAccount.getSighash(ifaceAccount.getFunction("execute"))
         // const test = ifaceAccount.getFunction("execute")
 
+        // debugConsoleLogUserOp(builder.getOp())
+    }
+    const handleDryRun = async () => {
+        if (!window.ethereum) {
+            return
+        }
+        const provider = new Ethers5.providers.Web3Provider(window.ethereum)
+        const signer = provider.getSigner()
+        console.log("URL:", provider.connection.url)
+        // Copy from https://github.com/stackup-wallet/erc-4337-examples/blob/4300f4e4cf42bc17be7b2a98f2eea04e3f3e3da5/scripts/simpleAccount/transfer.ts#L14-L32
+        const rpcUrl = "http://127.0.0.1:8545/"
+
+        const simpleAccount = await UserOp.Presets.Builder.SimpleAccount.init(
+            signer,
+            rpcUrl,
+            Addresses.EntryPoint,
+            Addresses.AccountFactoryProxy,
+        )
+        console.log("111")
+
+        const client = await UserOp.Client.init(rpcUrl, Addresses.EntryPoint)
+        console.log("222")
+        let res
+        try {
+            res = await client.sendUserOperation(
+                simpleAccount.execute(
+                    Addresses.signers7,
+                    Ethers5.utils.parseEther("0.5"),
+                    Ethers5.utils.arrayify("0x"),
+                ),
+                {
+                    dryRun: true,
+                    onBuild: (op) => {
+                        console.log("333")
+                        const newBuilder = new UserOp.UserOperationBuilder().setPartial({
+                            ...op,
+                        })
+                        setBuilder(newBuilder)
+                        console.log("Signed UserOperation:", op)
+                    },
+                },
+            )
+        } catch (e) {}
+        console.log(`UserOpHash: ${res?.userOpHash}`)
+
         debugConsoleLogUserOp(builder.getOp())
     }
-
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
         if (!window.ethereum) {
@@ -396,6 +461,7 @@ export const UserOperation = () => {
             <div>
                 <button onClick={() => handleAddress()}>Simple Account Address</button>
                 <button onClick={() => handleTransfer()}>Simple Account Transfer</button>
+                <button onClick={() => handleDryRun()}>Simple Account DryRun</button>
             </div>
             <div>{builder && aaForm(builder.getOp())}</div>
         </div>

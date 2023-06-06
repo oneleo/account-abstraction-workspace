@@ -116,6 +116,11 @@ async function main() {
     const contractAccountAddress = await contractAccountFactoryProxy.getAddress(user.address, SALT)
     // To obtain the instance of the deployed Account.
     const contractAccount = await hre.ethers.getContractAt(abiAccount, contractAccountAddress);
+    // The user sends ethers to the Account contract
+    writeTransaction = await user.sendTransaction({ to: contractAccount.address, ...value10Overrides })
+    if (debug) {
+        console.log(`// [debug] The sser sends ethers to Account:`, JSON.stringify(writeTransaction))
+    }
     // Deposit ether(s) from the Account contract to the EntryPoint.
     writeTransaction = await contractAccount.connect(user).addDeposit(value10Overrides)
     if (debug) {
@@ -128,6 +133,7 @@ async function main() {
     }
     console.log(
         `+ Account deployed to the address ${contractAccount.address} on the ${networkName}.\n`,
+        `  ↳ The ether(s) sent from the User EOA to the Account contract: ${await hre.ethers.provider.getBalance(contractAccount.address)}\n`,
         `  ↳ The ether(s) deposited from the Account contract to the EntryPoint: ${depositsAccount[0] as BigNumber}.`,
     )
 }
