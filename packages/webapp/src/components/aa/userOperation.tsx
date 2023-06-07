@@ -28,128 +28,69 @@ const defaultUserOp: UserOp.IUserOperation = {
 }
 
 export const UserOperation = () => {
-    const [sender, setSender] = React.useState<string>(defaultUserOp.sender)
-    const [nonce, setNonce] = React.useState<Ethers5.BigNumberish>(defaultUserOp.nonce)
-    const [initCode, setInitCode] = React.useState<Ethers5.BytesLike>(defaultUserOp.initCode)
-    const [callData, setCallData] = React.useState<Ethers5.BytesLike>(defaultUserOp.callData)
-    const [callGasLimit, setCallGasLimit] = React.useState<Ethers5.BigNumberish>(
-        defaultUserOp.callGasLimit,
-    )
-    const [verificationGasLimit, setVerificationGasLimit] = React.useState<Ethers5.BigNumberish>(
-        defaultUserOp.verificationGasLimit,
-    )
-    const [preVerificationGas, setPreVerificationGas] = React.useState<Ethers5.BigNumberish>(
-        defaultUserOp.preVerificationGas,
-    )
-    const [maxFeePerGas, setMaxFeePerGas] = React.useState<Ethers5.BigNumberish>(
-        defaultUserOp.maxFeePerGas,
-    )
-    const [maxPriorityFeePerGas, setMaxPriorityFeePerGas] = React.useState<Ethers5.BigNumberish>(
-        defaultUserOp.maxPriorityFeePerGas,
-    )
-    const [paymasterAndData, setPaymasterAndData] = React.useState<Ethers5.BytesLike>(
-        defaultUserOp.paymasterAndData,
-    )
-    const [signature, setSignature] = React.useState<Ethers5.BytesLike>(defaultUserOp.signature)
-
     const [userOp, setUserOp] = React.useState<UserOp.IUserOperation>(defaultUserOp)
 
     const [error, setError] = React.useState<string>("")
 
-    // Update userOp when set the eledments
     React.useEffect(() => {
-        try {
-            setUserOp({
-                sender: Ethers5.utils.getAddress(sender),
-                nonce: Ethers5.BigNumber.from(nonce),
-                initCode: Ethers5.utils.hexlify(initCode),
-                callData: Ethers5.utils.hexlify(callData),
-                callGasLimit: Ethers5.BigNumber.from(callGasLimit),
-                verificationGasLimit: Ethers5.BigNumber.from(verificationGasLimit),
-                preVerificationGas: Ethers5.BigNumber.from(preVerificationGas),
-                maxFeePerGas: Ethers5.BigNumber.from(maxFeePerGas),
-                maxPriorityFeePerGas: Ethers5.BigNumber.from(maxPriorityFeePerGas),
-                paymasterAndData: Ethers5.utils.hexlify(paymasterAndData),
-                signature: Ethers5.utils.hexlify(signature),
-            })
-        } catch (err) {
-            setError(err instanceof Error ? err.message : String(err))
+        if (debug) {
+            logUserOp(userOp)
         }
-    }, [
-        sender,
-        nonce,
-        initCode,
-        callData,
-        callGasLimit,
-        verificationGasLimit,
-        preVerificationGas,
-        maxFeePerGas,
-        maxPriorityFeePerGas,
-        paymasterAndData,
-        signature,
-    ])
+    }, [userOp])
 
     // Reset userOp
-    const resetUserOp = () => {
-        setSender(defaultUserOp.sender)
-        setNonce(defaultUserOp.nonce)
-        setInitCode(defaultUserOp.initCode)
-        setCallData(defaultUserOp.callData)
-        setCallGasLimit(defaultUserOp.callGasLimit)
-        setVerificationGasLimit(defaultUserOp.verificationGasLimit)
-        setPreVerificationGas(defaultUserOp.preVerificationGas)
-        setMaxFeePerGas(defaultUserOp.maxFeePerGas)
-        setMaxPriorityFeePerGas(defaultUserOp.maxPriorityFeePerGas)
-        setPaymasterAndData(defaultUserOp.paymasterAndData)
-        setSignature(defaultUserOp.signature)
-        console.log(`test`)
-        logUserOp(userOp)
+    const handleResetUserOp = () => {
+        setUserOp(defaultUserOp)
+    }
+
+    const formatUserOp = (up: UserOp.IUserOperation) => {
+        return {
+            sender: Ethers5.utils.getAddress(up.sender),
+            nonce: Ethers5.BigNumber.from(up.nonce),
+            initCode: Ethers5.utils.hexlify(up.initCode),
+            callData: Ethers5.utils.hexlify(up.callData),
+            callGasLimit: Ethers5.BigNumber.from(up.callGasLimit),
+            verificationGasLimit: Ethers5.BigNumber.from(up.verificationGasLimit),
+            preVerificationGas: Ethers5.BigNumber.from(up.preVerificationGas),
+            maxFeePerGas: Ethers5.BigNumber.from(up.maxFeePerGas),
+            maxPriorityFeePerGas: Ethers5.BigNumber.from(up.maxPriorityFeePerGas),
+            paymasterAndData: Ethers5.utils.hexlify(up.paymasterAndData),
+            signature: Ethers5.utils.hexlify(up.signature),
+        }
     }
 
     // Button Handler: Set the Address type and Sign
-    const handleAddress = async () => {
+    const handleAddress = React.useCallback(async () => {
         if (!window.ethereum) {
             return
         }
-        // Reset userOp
-        resetUserOp()
-        setError("")
-
         const provider = new Ethers5.providers.Web3Provider(window.ethereum)
         const signer = provider.getSigner()
 
-        // Set the sender, then update the userOp
-        setSender(Addresses.Account)
-
-        // Get userOp hash by Ctx
-        const userOpHash = new UserOp.UserOperationMiddlewareCtx(
-            userOp,
-            Addresses.signers7,
+        // Get userOp sig with Middleware
+        const builder = new UserOp.UserOperationBuilder()
+            .setPartial({
+                ...userOp,
+                sender: Addresses.Account, // Set the sender
+            })
+            .useMiddleware(UserOp.Presets.Middleware.EOASignature(signer))
+        const userOpWithSig = await builder.buildOp(
+            Addresses.EntryPoint,
             await provider.getSigner().getChainId(),
-        ).getUserOpHash()
+        )
 
-        const sig = await signer.signMessage(Ethers5.utils.arrayify(userOpHash))
-
-        // Set signature and update userOp
-        setSignature(sig)
-        if (debug) {
-            console.log(`userOpHash: ${userOpHash}`)
-            logUserOp(userOp)
-        }
-    }
+        // Update the value on the webpage.
+        setUserOp(formatUserOp(userOpWithSig))
+    }, [userOp])
 
     // Button Handler: Set the Transferred type and Sign
-    const handleTransfer = async () => {
+    const handleTransfer = React.useCallback(async () => {
         if (!window.ethereum) {
             return
         }
-        // Reset userOp
-        resetUserOp()
-        setError("")
 
         const provider = new Ethers5.providers.Web3Provider(window.ethereum)
         const signer = provider.getSigner()
-
         const ifaceAccount = new Ethers5.utils.Interface(abiAccount)
         const callData = ifaceAccount.encodeFunctionData("execute", [
             Addresses.signers7,
@@ -157,75 +98,78 @@ export const UserOperation = () => {
             Ethers5.utils.arrayify("0x"),
         ])
 
-        // Set the sender, callData, then update the userOp
-        setSender(Addresses.Account)
-        setCallData(callData)
+        // Get userOp sig by Builder
+        const builder = new UserOp.UserOperationBuilder()
+            .setPartial({
+                ...userOp,
+                sender: Addresses.Account, // Set the sender, callData
+                callData: callData,
+            })
+            .useMiddleware(UserOp.Presets.Middleware.EOASignature(signer))
+        const userOpWithSig = await builder.buildOp(
+            Addresses.EntryPoint,
+            await provider.getSigner().getChainId(),
+        )
+
+        // Update the value on the webpage.
+        setUserOp(formatUserOp(userOpWithSig))
+
+        //----------------------
+        // -- Test: handleOps --
+        //----------------------
+        if (debug) {
+            // Send userOp to EntryPoint directly
+            const gasOverrides: Ethers5.Overrides = {
+                gasLimit: Ethers5.BigNumber.from(5000000),
+                gasPrice: (await provider.getFeeData()).gasPrice || Ethers5.BigNumber.from(0),
+                nonce: Ethers5.BigNumber.from(9),
+            }
+            const contractEntryPoint = TypesEntryPointFactory.EntryPoint__factory.connect(
+                Addresses.EntryPoint,
+                signer,
+            )
+            try {
+                await contractEntryPoint.handleOps(
+                    [userOpWithSig],
+                    await signer.getAddress(),
+                    gasOverrides,
+                )
+            } catch (err: unknown) {
+                resolveErrorMsg(err as Error)
+            }
+        }
+    }, [userOp])
+
+    // Button Handler: Set the Transferred with Middleware type and Sign
+    const handleTransferWithCtx = React.useCallback(async () => {
+        if (!window.ethereum) {
+            return
+        }
+
+        const provider = new Ethers5.providers.Web3Provider(window.ethereum)
+        const signer = provider.getSigner()
+        const ifaceAccount = new Ethers5.utils.Interface(abiAccount)
+        const callData = ifaceAccount.encodeFunctionData("execute", [
+            Addresses.signers7,
+            Ethers5.utils.parseEther("0.5"),
+            Ethers5.utils.arrayify("0x"),
+        ])
 
         // Get userOp hash by Ctx
         const userOpHash = new UserOp.UserOperationMiddlewareCtx(
-            userOp,
+            {
+                ...userOp,
+                sender: Addresses.Account, // Set the sender, callData
+                callData: callData,
+            },
             Addresses.EntryPoint,
             await provider.getSigner().getChainId(),
         ).getUserOpHash()
         const sig = await signer.signMessage(Ethers5.utils.arrayify(userOpHash))
 
-        // Get userOp sig by Builder
-        const builder = new UserOp.UserOperationBuilder()
-            .setPartial(userOp)
-            .useMiddleware(UserOp.Presets.Middleware.EOASignature(signer))
-
-        const userOpWithSig = await builder.buildOp(
-            Addresses.EntryPoint,
-            await provider.getSigner().getChainId(),
-        )
-
-        // Set signature and update userOp
-        setSignature(sig)
-        if (debug) {
-            logUserOp(userOp)
-            console.log(`are sigs same? ${sig === userOpWithSig.signature.toString()}`)
-        }
-    }
-
-    // Button Handler: Set the Transferred with Middleware type and Sign
-    const handleDryRun = async () => {
-        if (!window.ethereum) {
-            return
-        }
-        // Reset userOp
-        resetUserOp()
-        setError("")
-
-        const provider = new Ethers5.providers.Web3Provider(window.ethereum)
-        const signer = provider.getSigner()
-
-        const ifaceAccount = new Ethers5.utils.Interface(abiAccount)
-        const callData = ifaceAccount.encodeFunctionData("execute", [
-            Addresses.signers7,
-            Ethers5.utils.parseEther("0.5"),
-            Ethers5.utils.arrayify("0x"),
-        ])
-
-        // Set the sender, callData, then update the userOp
-        setSender(Addresses.Account)
-        setCallData(callData)
-
-        // Get userOp sig by Builder
-        const builder = new UserOp.UserOperationBuilder()
-            .setPartial(userOp)
-            .useMiddleware(UserOp.Presets.Middleware.EOASignature(signer))
-
-        const userOpWithSig = await builder.buildOp(
-            Addresses.EntryPoint,
-            await provider.getSigner().getChainId(),
-        )
-
-        // Set the signature and update userOp
-        setSignature(userOpWithSig.signature)
-        if (debug) {
-            logUserOp(userOp)
-        }
-    }
+        // Update the value on the webpage.
+        setUserOp(formatUserOp({ ...userOp, signature: sig }))
+    }, [userOp])
 
     // Send transaction to EntryPoint.handleOps
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -289,37 +233,125 @@ export const UserOperation = () => {
         try {
             switch (id) {
                 case "sender":
-                    setSender(value.toString())
+                    try {
+                        setUserOp({
+                            ...userOp,
+                            sender: Ethers5.utils.getAddress(value),
+                        })
+                        setError("")
+                    } catch (err: unknown) {
+                        setError(err instanceof Error ? err.message : String(err))
+                    }
                     break
                 case "nonce":
-                    setNonce(value)
+                    try {
+                        setUserOp({
+                            ...userOp,
+                            nonce: Ethers5.BigNumber.from(value),
+                        })
+                        setError("")
+                    } catch (err: unknown) {
+                        setError(err instanceof Error ? err.message : String(err))
+                    }
                     break
                 case "initCode":
-                    setInitCode(value.toString())
+                    try {
+                        setUserOp({
+                            ...userOp,
+                            initCode: Ethers5.utils.hexlify(value),
+                        })
+                        setError("")
+                    } catch (err: unknown) {
+                        setError(err instanceof Error ? err.message : String(err))
+                    }
                     break
                 case "callData":
-                    setCallData(value.toString())
+                    try {
+                        setUserOp({
+                            ...userOp,
+                            callData: Ethers5.utils.hexlify(value),
+                        })
+                        setError("")
+                    } catch (err: unknown) {
+                        setError(err instanceof Error ? err.message : String(err))
+                    }
                     break
                 case "callGasLimit":
-                    setCallGasLimit(value)
+                    try {
+                        setUserOp({
+                            ...userOp,
+                            callGasLimit: Ethers5.BigNumber.from(value),
+                        })
+                        setError("")
+                    } catch (err: unknown) {
+                        setError(err instanceof Error ? err.message : String(err))
+                    }
                     break
                 case "verificationGasLimit":
-                    setVerificationGasLimit(value)
+                    try {
+                        setUserOp({
+                            ...userOp,
+                            verificationGasLimit: Ethers5.BigNumber.from(value),
+                        })
+                        setError("")
+                    } catch (err: unknown) {
+                        setError(err instanceof Error ? err.message : String(err))
+                    }
                     break
                 case "preVerificationGas":
-                    setPreVerificationGas(value)
+                    try {
+                        setUserOp({
+                            ...userOp,
+                            preVerificationGas: Ethers5.BigNumber.from(value),
+                        })
+                        setError("")
+                    } catch (err: unknown) {
+                        setError(err instanceof Error ? err.message : String(err))
+                    }
                     break
                 case "maxFeePerGas":
-                    setMaxFeePerGas(value)
+                    try {
+                        setUserOp({
+                            ...userOp,
+                            maxFeePerGas: Ethers5.BigNumber.from(value),
+                        })
+                        setError("")
+                    } catch (err: unknown) {
+                        setError(err instanceof Error ? err.message : String(err))
+                    }
                     break
                 case "maxPriorityFeePerGas":
-                    setMaxPriorityFeePerGas(value)
+                    try {
+                        setUserOp({
+                            ...userOp,
+                            maxPriorityFeePerGas: Ethers5.BigNumber.from(value),
+                        })
+                        setError("")
+                    } catch (err: unknown) {
+                        setError(err instanceof Error ? err.message : String(err))
+                    }
                     break
                 case "paymasterAndData":
-                    setPaymasterAndData(value.toString())
+                    try {
+                        setUserOp({
+                            ...userOp,
+                            paymasterAndData: Ethers5.utils.hexlify(value),
+                        })
+                        setError("")
+                    } catch (err: unknown) {
+                        setError(err instanceof Error ? err.message : String(err))
+                    }
                     break
                 case "signature":
-                    setSignature(value.toString())
+                    try {
+                        setUserOp({
+                            ...userOp,
+                            signature: Ethers5.utils.hexlify(value),
+                        })
+                        setError("")
+                    } catch (err: unknown) {
+                        setError(err instanceof Error ? err.message : String(err))
+                    }
                     break
                 default:
                     break
@@ -449,9 +481,14 @@ export const UserOperation = () => {
                         {error && <text className="Error">{`error: ${error}`}</text>}
                     </div>
                     <div>
-                        <input type="submit" value="Submit" />
+                        <div>
+                            <input disabled={!!error} type="submit" value="Submit" />
+                        </div>
                     </div>
                 </form>
+                <div>
+                    <button onClick={() => handleResetUserOp()}>Reset the UserOp</button>
+                </div>
             </>
         )
     }
@@ -468,8 +505,8 @@ export const UserOperation = () => {
                     </button>
                 </div>
                 <div>
-                    <button onClick={() => handleDryRun()}>
-                        Set the Transferred type with Middleware and Sign
+                    <button onClick={() => handleTransferWithCtx()}>
+                        Set the Transferred type with Ctx and Sign
                     </button>
                 </div>
             </div>
