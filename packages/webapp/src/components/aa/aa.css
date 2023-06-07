@@ -1,3 +1,7 @@
 .form-input input {
     width: 350px;
 }
+
+.Error {
+    color: red;
+}

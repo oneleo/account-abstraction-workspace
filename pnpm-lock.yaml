@@ -105,6 +105,9 @@ importers:
       typescript:
         specifier: '>=4.5.0'
         version: 5.0.2
+      userop:
+        specifier: ^0.2.0
+        version: 0.2.0
       wait-on:
         specifier: ^7.0.1
         version: 7.0.1
