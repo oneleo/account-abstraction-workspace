@@ -43,6 +43,16 @@ export const UserOperation = () => {
         setUserOp(defaultUserOp)
     }
 
+    const createAANonce = (key: Ethers5.BigNumberish, seq: Ethers5.BigNumberish) => {
+        const maxUint192 = Ethers5.BigNumber.from("0xffffffffffffffffffffffffffffffffffffffff")
+        const maxUint64 = Ethers5.BigNumber.from("0xffffffffffffffff")
+        const shiftedKey = Ethers5.BigNumber.from(key).and(maxUint192).shl(64)
+        const combinedValue = shiftedKey.or(Ethers5.BigNumber.from(seq).and(maxUint64))
+        const uint256Value = Ethers5.utils.hexZeroPad(combinedValue.toHexString(), 32)
+
+        return Ethers5.BigNumber.from(uint256Value)
+    }
+
     const formatUserOp = (up: UserOp.IUserOperation) => {
         return {
             sender: Ethers5.utils.getAddress(up.sender),
@@ -80,7 +90,7 @@ export const UserOperation = () => {
         )
 
         // Update the value on the webpage.
-        setUserOp(formatUserOp(userOpWithSig))
+        // setUserOp(formatUserOp(userOpWithSig))
     }, [userOp])
 
     // Button Handler: Set the Transferred type and Sign
@@ -102,6 +112,8 @@ export const UserOperation = () => {
         const builder = new UserOp.UserOperationBuilder()
             .setPartial({
                 ...userOp,
+                // nonce: createAANonce(3, 1), // AA25 invalid account nonce
+                nonce: createAANonce(3, 0),
                 sender: Addresses.Account, // Set the sender, callData
                 callData: callData,
             })
@@ -112,7 +124,7 @@ export const UserOperation = () => {
         )
 
         // Update the value on the webpage.
-        setUserOp(formatUserOp(userOpWithSig))
+        // setUserOp(formatUserOp(userOpWithSig))
 
         //----------------------
         // -- Test: handleOps --
@@ -128,6 +140,18 @@ export const UserOperation = () => {
                 Addresses.EntryPoint,
                 signer,
             )
+
+            const entryPointNonce = await contractEntryPoint.getNonce(
+                Addresses.Account,
+                3,
+                gasOverrides,
+            )
+            console.log(
+                `Are the Account and EntryPoint nonce equal? ${entryPointNonce.eq(
+                    userOpWithSig.nonce,
+                )}`,
+            )
+
             try {
                 await contractEntryPoint.handleOps(
                     [userOpWithSig],
@@ -168,7 +192,7 @@ export const UserOperation = () => {
         const sig = await signer.signMessage(Ethers5.utils.arrayify(userOpHash))
 
         // Update the value on the webpage.
-        setUserOp(formatUserOp({ ...userOp, signature: sig }))
+        // setUserOp(formatUserOp({ ...userOp, signature: sig }))
     }, [userOp])
 
     // Send transaction to EntryPoint.handleOps
