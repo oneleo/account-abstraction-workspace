@@ -11,10 +11,15 @@ import { abi as abiEntryPoint, bytecode as bytecodeEntryPoint } from "@account-a
 import { abi as abiPaymaster, bytecode as bytecodePaymaster } from "@account-abstraction/contracts/artifacts/DepositPaymaster.json"
 import { abi as abiAccountFactory, bytecode as bytecodeAccountFactory } from "@account-abstraction/contracts/artifacts/SimpleAccountFactory.json"
 import { abi as abiAccount, bytecode as bytecodeAccount } from "@account-abstraction/contracts/artifacts/SimpleAccount.json"
+import { abi as abiUniswapSwapRouter, bytecode as bytecodeSwapRouter } from "@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json"
+const debug = true
 
-const debug = false
-
+const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
 const USDT_ADDRESS = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+
+const UNISWAP_SWAP_ROUTER_ADDRESS = "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+const UNISWAP_POOL_FEE = 3000 // 0.3% expressed in hundredths of a bip
+
 const USDT_ETH_CHAINLINK = "0xEe9F2375b4bdF6387aa8265dD4FB8F16512A1d46"
 const SALT = BigNumber.from(333666999)
 const DATA = String('0x')
@@ -24,16 +29,19 @@ const networkName = hre.network.name
 async function main() {
     let writeTransaction: ContractTransaction
 
-    // Get the signers from Hardhat accounts.
+
+    // Get the signers and timestamp from Hardhat accounts.
     const signers = await hre.ethers.getSigners()
     const aAOwner = signers[9]
     const paymasterOwner = signers[8]
     const user = signers[0]
+    const blockTimeStamp = (await hre.ethers.provider.getBlock(await hre.ethers.provider.getBlockNumber())).timestamp
     console.log(
         `+ EOA addresses:\n`,
         `  ↳ The AA contract owner's address is ${aAOwner.address}.\n`,
         `  ↳ The AA user's address is ${user.address}.\n`,
         `  ↳ The Paymaster owner's address is ${paymasterOwner.address}.`,
+        `  ↳ The block timestamp is ${blockTimeStamp}.`,
     )
 
     // Declare the gas overrides argument.
@@ -50,8 +58,9 @@ async function main() {
         value: hre.ethers.utils.parseEther("10"),
     }
 
-    const contractUsdt = await hre.ethers.getContractAt(abiIErc20, USDT_ADDRESS);
-    const usdtAggregator = await hre.ethers.getContractAt(abiAggregatorV2V3Interface, USDT_ETH_CHAINLINK)
+
+    const contractUsdt = await hre.ethers.getContractAt(abiIErc20, USDT_ADDRESS); // Read contract
+    const usdtAggregator = await hre.ethers.getContractAt(abiAggregatorV2V3Interface, USDT_ETH_CHAINLINK) // Read contract
 
     // Deploy the UsdtOracle contract on localhost.
     const contractUsdtOracle = await (
@@ -131,10 +140,28 @@ async function main() {
     if (debug) {
         console.log(`// [debug] EntryPoint.deposits():`, JSON.stringify(depositsAccount))
     }
+
+    // The user exchanges ethers for USDT, which are then transferred to the Account contract.
+    const contractUniswapSwapRouter = new hre.ethers.Contract(UNISWAP_SWAP_ROUTER_ADDRESS, abiUniswapSwapRouter, user); // Write contract
+
+    writeTransaction = await contractUniswapSwapRouter.exactInputSingle({
+        tokenIn: WETH_ADDRESS,
+        tokenOut: USDT_ADDRESS,
+        fee: UNISWAP_POOL_FEE,
+        recipient: contractAccount.address,
+        deadline: BigNumber.from(blockTimeStamp + 600),
+        amountIn: value10Overrides.value,
+        amountOutMinimum: BigNumber.from(0),
+        sqrtPriceLimitX96: 0,
+    }, value10Overrides);
+
+    console.log(`test`)
+
     console.log(
         `+ Account deployed to the address ${contractAccount.address} on the ${networkName}.\n`,
         `  ↳ The ether(s) sent from the User EOA to the Account contract: ${await hre.ethers.provider.getBalance(contractAccount.address)}\n`,
-        `  ↳ The ether(s) deposited from the Account contract to the EntryPoint: ${depositsAccount[0] as BigNumber}.`,
+        `  ↳ The ether(s) deposited from the Account contract to the EntryPoint: ${depositsAccount[0] as BigNumber}.\n`,
+        `  ↳ The USDT sent from the User EOA to the Account contract:: ${await contractUsdt.balanceOf(contractAccount.address)}.`,
     )
 }
 

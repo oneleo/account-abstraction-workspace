@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typechain": "typechain --target ethers-v5 --out-dir typechain-types/@account-abstraction/contracts ./node_modules/@account-abstraction/contracts/artifacts/**/*.json",
+    "typechain": "typechain --target ethers-v5 --out-dir typechain-types/@account-abstraction/contracts ./node_modules/@account-abstraction/contracts/artifacts/**/*.json && typechain --target ethers-v5 --out-dir typechain-types/@openzeppelin/contracts ./node_modules/@openzeppelin/contracts/build/contracts/**/*.json",
     "lint:check": "eslint --ext=js,jsx,ts,tsx,json src/",
     "lint:fix": "eslint --fix --ext=js,jsx,ts,tsx,json src/",
     "pretty:check": "prettier . --check --ignore-unknown",
@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@account-abstraction/contracts": "^0.6.0",
+    "@openzeppelin/contracts": "^4.9.0",
     "@typechain/ethers-v5": "^10.1.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-prettier": "^4.2.1",

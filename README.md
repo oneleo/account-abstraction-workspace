@@ -70,3 +70,10 @@ It will start up at [http://localhost:8545](http://localhost:8545).
 It will start up at [http://localhost:3000/account-abstraction](http://localhost:3000/account-abstraction).
 
 :notebook_with_decorative_cover: Please note that it is necessary to install the [Metamask](https://metamask.io/download/) extension on your browser.
+
+| Add a network manually | Connect MetaMask with Hardhat Network |
+| ---------------------- | ------------------------------------- |
+| Network name           | Hardhat Node                          |
+| New RPC URL            | http://127.0.0.1:8545                 |
+| Chain ID               | 1337                                  |
+| Currency symbol        | ETH                                   |

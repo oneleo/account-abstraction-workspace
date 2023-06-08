@@ -3,19 +3,55 @@ import * as Ethers5 from "ethers"
 import * as UserOp from "userop"
 import * as Addresses from "./addressea"
 import * as TypesEntryPointFactory from "@/../typechain-types/@account-abstraction/contracts/factories/EntryPoint__factory"
+import * as TypesAccountFactory from "@/../typechain-types/@account-abstraction/contracts/factories/SimpleAccount__factory"
+import * as TypesErc20Factory from "@/../typechain-types/@openzeppelin/contracts/factories/ERC20__factory"
+
 import * as TypesEntryPoint from "@/../typechain-types/@account-abstraction/contracts/EntryPoint"
 
-import {
-    abi as abiAccount,
-    bytecode as bytecodeAccount,
-} from "@account-abstraction/contracts/artifacts/SimpleAccount.json"
+import { abi as abiAccount } from "@account-abstraction/contracts/artifacts/SimpleAccount.json"
+import { abi as abiErc20 } from "@openzeppelin/contracts/build/contracts/ERC20.json"
 
 import "./aa.css"
 
-const debug = true
+const debug = false
+
+const USDT_ADDRESS = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+
+const AA_NONCE_KEY = 18
+
+const encodeAANonce = (key: Ethers5.BigNumberish, seq: Ethers5.BigNumberish) => {
+    const maxUint192 = Ethers5.BigNumber.from("0xffffffffffffffffffffffff")
+    const maxUint64 = Ethers5.BigNumber.from("0xffffffffffffffff")
+    const shiftedKey = Ethers5.BigNumber.from(key).and(maxUint192).shl(64)
+    const combinedValue = shiftedKey.or(Ethers5.BigNumber.from(seq).and(maxUint64))
+    const uint256Value = Ethers5.utils.hexZeroPad(combinedValue.toHexString(), 32)
+
+    return Ethers5.BigNumber.from(uint256Value)
+}
+
+import { BigNumber, utils } from "ethers"
+
+const decodeAANonce = (nonce: Ethers5.BigNumberish) => {
+    const maxUint192 = Ethers5.BigNumber.from("0xffffffffffffffffffffffff")
+    const maxUint64 = Ethers5.BigNumber.from("0xffffffffffffffff")
+
+    const uint256Value = utils.hexZeroPad(Ethers5.BigNumber.from(nonce).toHexString(), 32)
+    const combinedValue = Ethers5.BigNumber.from(uint256Value)
+
+    const seq = combinedValue.and(maxUint64)
+    const shiftedKey = combinedValue.shr(64).and(maxUint192)
+
+    return {
+        key: shiftedKey,
+        seq: seq,
+    }
+}
+
+const usdtBalance = async (address: string) => {}
+
 const defaultUserOp: UserOp.IUserOperation = {
     sender: Ethers5.constants.AddressZero,
-    nonce: 0,
+    nonce: encodeAANonce(AA_NONCE_KEY, 0),
     initCode: "0x",
     callData: "0x",
     callGasLimit: 35000,
@@ -29,6 +65,13 @@ const defaultUserOp: UserOp.IUserOperation = {
 
 export const UserOperation = () => {
     const [userOp, setUserOp] = React.useState<UserOp.IUserOperation>(defaultUserOp)
+    const [userOpTemp, setUserOpTemp] = React.useState<UserOp.IUserOperation>(defaultUserOp)
+
+    const [tokenSymbol, setTokenSymbol] = React.useState<string>("ETH")
+    const [toAddress, setToAddress] = React.useState<string>(Addresses.signers7)
+    const [tokenAmount, setTokenAmount] = React.useState<Ethers5.BigNumberish>(
+        Ethers5.BigNumber.from("1000000000000000000"),
+    )
 
     const [error, setError] = React.useState<string>("")
 
@@ -38,19 +81,23 @@ export const UserOperation = () => {
         }
     }, [userOp])
 
+    React.useEffect(() => {
+        setUserOp(userOpTemp)
+    }, [userOpTemp])
+
     // Reset userOp
     const handleResetUserOp = () => {
         setUserOp(defaultUserOp)
     }
 
-    const createAANonce = (key: Ethers5.BigNumberish, seq: Ethers5.BigNumberish) => {
-        const maxUint192 = Ethers5.BigNumber.from("0xffffffffffffffffffffffff")
-        const maxUint64 = Ethers5.BigNumber.from("0xffffffffffffffff")
-        const shiftedKey = Ethers5.BigNumber.from(key).and(maxUint192).shl(64)
-        const combinedValue = shiftedKey.or(Ethers5.BigNumber.from(seq).and(maxUint64))
-        const uint256Value = Ethers5.utils.hexZeroPad(combinedValue.toHexString(), 32)
-
-        return Ethers5.BigNumber.from(uint256Value)
+    const handleAANonceSeqPluseOne = () => {
+        setUserOp({
+            ...userOp,
+            nonce: encodeAANonce(
+                AA_NONCE_KEY,
+                decodeAANonce(Ethers5.BigNumber.from(userOp.nonce)).seq.add(1),
+            ),
+        })
     }
 
     const formatUserOp = (up: UserOp.IUserOperation) => {
@@ -89,9 +136,9 @@ export const UserOperation = () => {
             await provider.getSigner().getChainId(),
         )
 
-        // Update the value on the webpage.
-        // setUserOp(formatUserOp(userOpWithSig))
-    }, [userOp])
+        // Update the value to userOpTemp
+        setUserOpTemp(formatUserOp(userOpWithSig))
+    }, [userOp, tokenSymbol, toAddress, tokenAmount])
 
     // Button Handler: Set the Transferred type and Sign
     const handleTransfer = React.useCallback(async () => {
@@ -101,19 +148,42 @@ export const UserOperation = () => {
 
         const provider = new Ethers5.providers.Web3Provider(window.ethereum)
         const signer = provider.getSigner()
+
+        let executeArgs: any[] = []
+        if (tokenSymbol === "ETH") {
+            executeArgs = [
+                Ethers5.utils.getAddress(toAddress), // dest
+                Ethers5.utils.parseEther("1"), // value
+                Ethers5.utils.arrayify("0x"), // func
+            ]
+            console.log(`tokenSymbol: ${tokenSymbol}`)
+            console.log(`executeArgs: ${executeArgs}`)
+        }
+
+        if (tokenSymbol === "USDT") {
+            const ifaceErc20 = new Ethers5.utils.Interface(abiErc20)
+            const encodeTransfer = ifaceErc20.encodeFunctionData("transfer", [
+                Ethers5.utils.getAddress(toAddress),
+                Ethers5.BigNumber.from(tokenAmount),
+            ])
+            executeArgs = [
+                Ethers5.utils.getAddress(USDT_ADDRESS), // dest
+                Ethers5.BigNumber.from(0), // value
+                encodeTransfer, // func
+            ]
+            console.log(`tokenSymbol: ${tokenSymbol}`)
+            console.log(`encodeTransfer: ${encodeTransfer}`)
+            console.log(`executeArgs: ${executeArgs}`)
+        }
+
         const ifaceAccount = new Ethers5.utils.Interface(abiAccount)
-        const callData = ifaceAccount.encodeFunctionData("execute", [
-            Addresses.signers7,
-            Ethers5.utils.parseEther("0.5"),
-            Ethers5.utils.arrayify("0x"),
-        ])
+        const callData = ifaceAccount.encodeFunctionData("execute", executeArgs)
 
         // Get userOp sig by Builder
         const builder = new UserOp.UserOperationBuilder()
             .setPartial({
                 ...userOp,
-                // nonce: createAANonce(18, 1), // AA25 invalid account nonce
-                nonce: createAANonce(18, 0),
+                // nonce: encodeAANonce(AA_NONCE_KEY, 999), // AA25 invalid account nonce
                 sender: Addresses.Account, // Set the sender, callData
                 callData: callData,
             })
@@ -123,8 +193,8 @@ export const UserOperation = () => {
             await provider.getSigner().getChainId(),
         )
 
-        // Update the value on the webpage.
-        // setUserOp(formatUserOp(userOpWithSig))
+        // Update the value to userOpTemp
+        setUserOpTemp(formatUserOp(userOpWithSig))
 
         //----------------------
         // -- Test: handleOps --
@@ -140,29 +210,40 @@ export const UserOperation = () => {
                 Addresses.EntryPoint,
                 signer,
             )
-
-            const entryPointNonce = await contractEntryPoint.getNonce(
+            const contractAccount = TypesAccountFactory.SimpleAccount__factory.connect(
                 Addresses.Account,
-                18,
-                gasOverrides,
+                signer,
             )
-            console.log(
-                `Are the Account and EntryPoint nonce equal? ${entryPointNonce.eq(
-                    userOpWithSig.nonce,
-                )}`,
-            )
+
+            // const entryPointNonce = await contractEntryPoint.getNonce(
+            //     Addresses.Account,
+            //     18,
+            //     gasOverrides,
+            // )
+
+            // const userOpHashByEntryPoint = await contractEntryPoint.getUserOpHash(
+            //     userOpWithSig as TypesEntryPoint.UserOperationStructOutput,
+            //     gasOverrides,
+            // )
+
+            console.log(`// [debug] Signer Address: ${await signer.getAddress()}`)
+            console.log(`// [debug] Chain Id: ${await signer.getChainId()}`)
+            console.log(`Account Owner: ${await contractAccount.owner()}`)
 
             try {
                 await contractEntryPoint.handleOps(
-                    [userOpWithSig],
+                    [userOpWithSig as TypesEntryPoint.UserOperationStructOutput],
                     await signer.getAddress(),
                     gasOverrides,
                 )
             } catch (err: unknown) {
                 resolveErrorMsg(err as Error)
             }
+
+            // const contractUsdt = TypesErc20Factory.ERC20__factory.connect(USDT_ADDRESS, signer)
+            // console.log(`${toAddress}'s USDT is ${await contractUsdt.balanceOf(toAddress)}`)
         }
-    }, [userOp])
+    }, [userOp, tokenSymbol, toAddress, tokenAmount])
 
     // Button Handler: Set the Transferred with Middleware type and Sign
     const handleTransferWithCtx = React.useCallback(async () => {
@@ -191,9 +272,16 @@ export const UserOperation = () => {
         ).getUserOpHash()
         const sig = await signer.signMessage(Ethers5.utils.arrayify(userOpHash))
 
-        // Update the value on the webpage.
-        // setUserOp(formatUserOp({ ...userOp, signature: sig }))
-    }, [userOp])
+        // Update the value to userOpTemp
+        setUserOpTemp(
+            formatUserOp({
+                ...userOp,
+                sender: Addresses.Account,
+                callData: callData,
+                signature: sig,
+            }),
+        )
+    }, [userOp, tokenSymbol, toAddress, tokenAmount])
 
     // Send transaction to EntryPoint.handleOps
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -222,9 +310,10 @@ export const UserOperation = () => {
         )
 
         if (debug) {
-            console.log(`// [debug] EntryPoint Address: ${contractEntryPoint.address}`)
             console.log(`// [debug] Signer Address: ${addrSigner}`)
             console.log(`// [debug] Chain Id: ${await signer.getChainId()}`)
+            console.log(`// [debug] EntryPoint Address: ${contractEntryPoint.address}`)
+
             logUserOp(userOp)
         }
 
@@ -243,7 +332,7 @@ export const UserOperation = () => {
 
         try {
             writeTransaction = await contractEntryPoint.handleOps(
-                [userOp],
+                [userOp as TypesEntryPoint.UserOperationStructOutput],
                 addrSigner,
                 gasOverrides,
             )
@@ -252,10 +341,40 @@ export const UserOperation = () => {
         }
     }
 
-    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { id, value } = event.target
         try {
             switch (id) {
+                case "tokenSymbol":
+                    try {
+                        setTokenSymbol(value.toString())
+                        if (value.toString() === "ETH") {
+                            setTokenAmount(Ethers5.BigNumber.from("1000000000000000000"))
+                        }
+                        if (value.toString() === "USDT") {
+                            setTokenAmount(Ethers5.BigNumber.from(1000000))
+                        }
+                        setError("")
+                    } catch (err: unknown) {
+                        setError(err instanceof Error ? err.message : String(err))
+                    }
+                    break
+                case "toAddress":
+                    try {
+                        setToAddress(Ethers5.utils.getAddress(value))
+                        setError("")
+                    } catch (err: unknown) {
+                        setError(err instanceof Error ? err.message : String(err))
+                    }
+                    break
+                case "tokenAmount":
+                    try {
+                        setTokenAmount(Ethers5.BigNumber.from(value))
+                        setError("")
+                    } catch (err: unknown) {
+                        setError(err instanceof Error ? err.message : String(err))
+                    }
+                    break
                 case "sender":
                     try {
                         setUserOp({
@@ -392,6 +511,39 @@ export const UserOperation = () => {
             <>
                 <form onSubmit={handleSubmit}>
                     <div className="form-input">
+                        <label>[Transfer token]</label>
+                        <div>
+                            <label>Token:</label>
+                            <select
+                                id="tokenSymbol"
+                                value={`${tokenSymbol}`}
+                                onChange={handleChange}
+                            >
+                                <option value="ETH">ETH</option>
+                                <option value="USDT">USDT</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>To(default: signers 7): </label>
+                            <input
+                                type="text"
+                                id="toAddress"
+                                placeholder="請點選輸入"
+                                value={`${toAddress}`}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div>
+                            <label>Amount(default: 1 unit):</label>
+                            <input
+                                type="text"
+                                id="tokenAmount"
+                                placeholder="請點選輸入"
+                                value={`${tokenAmount}`}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <label>[UserOp]</label>
                         <div>
                             <label>Sender:</label>
                             <input
@@ -411,6 +563,11 @@ export const UserOperation = () => {
                                 value={`${userOp.nonce}`}
                                 onChange={handleChange}
                             />
+                            <label>{`→ key: ${
+                                decodeAANonce(Ethers5.BigNumber.from(userOp.nonce)).key
+                            } seq: ${
+                                decodeAANonce(Ethers5.BigNumber.from(userOp.nonce)).seq
+                            }`}</label>
                         </div>
                         <div>
                             <label>Init Code:</label>
@@ -533,6 +690,9 @@ export const UserOperation = () => {
                         Set the Transferred type with Ctx and Sign
                     </button>
                 </div>
+                <div>
+                    <button onClick={() => handleAANonceSeqPluseOne()}>AA Nonce Seq + 1</button>
+                </div>
             </div>
             <div>{userOp && aaForm(userOp)}</div>
         </div>
@@ -544,37 +704,35 @@ const logUserOp = (userOp: UserOp.IUserOperation) => {
 }
 
 const resolveErrorMsg = (err: Error) => {
-    if (debug) {
-        const message = err.message.toString()
-        const regex = /return data: (0x[0-9a-fA-F]+)/
-        const match = message.match(regex)
-        const data = match ? match[1] : ""
+    const message = err.message.toString()
+    const regex = /return data: (0x[0-9a-fA-F]+)/
+    const match = message.match(regex)
+    const data = match ? match[1] : ""
 
-        const method = Ethers5.utils.hexDataSlice(data, 0, 4)
-        const parms = Ethers5.utils.hexDataSlice(data, 4)
+    const method = Ethers5.utils.hexDataSlice(data, 0, 4)
+    const parms = Ethers5.utils.hexDataSlice(data, 4)
 
-        const errorExecutionResult = Ethers5.utils
-            .id("ExecutionResult(uint256,uint256,uint48,uint48,bool,bytes)")
-            .substring(0, 10) // 0x8b7ac980
-        const errorFailedOp = Ethers5.utils.id("FailedOp(uint256,string)").substring(0, 10) // 0x220266b6
+    const errorExecutionResult = Ethers5.utils
+        .id("ExecutionResult(uint256,uint256,uint48,uint48,bool,bytes)")
+        .substring(0, 10) // 0x8b7ac980
+    const errorFailedOp = Ethers5.utils.id("FailedOp(uint256,string)").substring(0, 10) // 0x220266b6
 
-        let output
-        switch (method.toString()) {
-            case errorExecutionResult:
-                output = Ethers5.utils.defaultAbiCoder.decode(
-                    ["uint256", "uint256", "uint48", "uint48", "bool", "bytes"],
-                    parms,
-                )
-                break
-            case errorFailedOp:
-                output = Ethers5.utils.defaultAbiCoder.decode(["uint256", "string"], parms)
-                break
-            default:
-                // 如果前缀不匹配任何情况，则执行其他操作
-                output = parms
-                break
-        }
-
-        console.log(`// [Error] ${JSON.stringify(output)}`)
+    let output
+    switch (method.toString()) {
+        case errorExecutionResult:
+            output = Ethers5.utils.defaultAbiCoder.decode(
+                ["uint256", "uint256", "uint48", "uint48", "bool", "bytes"],
+                parms,
+            )
+            break
+        case errorFailedOp:
+            output = Ethers5.utils.defaultAbiCoder.decode(["uint256", "string"], parms)
+            break
+        default:
+            // 如果前缀不匹配任何情况，则执行其他操作
+            output = parms
+            break
     }
+
+    console.log(`// [Error] ${JSON.stringify(output)}`)
 }
