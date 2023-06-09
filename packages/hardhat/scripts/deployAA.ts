@@ -1,9 +1,9 @@
 import hre from "hardhat";
-import { BigNumber, Overrides, PayableOverrides, ContractTransaction } from "ethers"
+import { BigNumber, Overrides, PayableOverrides, ContractTransaction, utils } from "ethers"
 
 // Import contract ABIs.
 import { abi as abiTest, bytecode as bytecodeTest } from "../artifacts/contracts/Lock.sol/Lock.json"
-import { abi as abiIErc20 } from "@openzeppelin/contracts/build/contracts/IERC20.json"
+import { abi as abiErc20 } from "@openzeppelin/contracts/build/contracts/ERC20.json"
 import { abi as abiErc1967Proxy, bytecode as bytecodeErc1967Proxy } from "@openzeppelin/contracts/build/contracts/ERC1967Proxy.json"
 import abiAggregatorV2V3Interface from "@chainlink/contracts/abi/v0.8/AggregatorV2V3Interface.json"
 import { abi as abiUsdtOracle, bytecode as bytecodeUsdtOracle } from "../artifacts/contracts/UsdtOracle.sol/UsdtOracle.json"
@@ -28,7 +28,6 @@ const networkName = hre.network.name
 
 async function main() {
     let writeTransaction: ContractTransaction
-
 
     // Get the signers and timestamp from Hardhat accounts.
     const signers = await hre.ethers.getSigners()
@@ -59,8 +58,8 @@ async function main() {
     }
 
 
-    const contractUsdt = await hre.ethers.getContractAt(abiIErc20, USDT_ADDRESS); // Read contract
-    const usdtAggregator = await hre.ethers.getContractAt(abiAggregatorV2V3Interface, USDT_ETH_CHAINLINK) // Read contract
+    const contractUsdt = await hre.ethers.getContractAt(abiErc20, USDT_ADDRESS); // Read-only contract instance
+    const usdtAggregator = await hre.ethers.getContractAt(abiAggregatorV2V3Interface, USDT_ETH_CHAINLINK) // Read-only contract instance
 
     // Deploy the UsdtOracle contract on localhost.
     const contractUsdtOracle = await (
@@ -124,7 +123,7 @@ async function main() {
     // To obtain the address of the deployed Account.
     const contractAccountAddress = await contractAccountFactoryProxy.getAddress(user.address, SALT)
     // To obtain the instance of the deployed Account.
-    const contractAccount = await hre.ethers.getContractAt(abiAccount, contractAccountAddress);
+    const contractAccount = await hre.ethers.getContractAt(abiAccount, contractAccountAddress); // Read-only contract instance
     // The user sends ethers to the Account contract
     writeTransaction = await user.sendTransaction({ to: contractAccount.address, ...value10Overrides })
     if (debug) {
@@ -142,26 +141,48 @@ async function main() {
     }
 
     // The user exchanges ethers for USDT, which are then transferred to the Account contract.
-    const contractUniswapSwapRouter = new hre.ethers.Contract(UNISWAP_SWAP_ROUTER_ADDRESS, abiUniswapSwapRouter, user); // Write contract
+    const contractUniswapSwapRouter = new hre.ethers.Contract(UNISWAP_SWAP_ROUTER_ADDRESS, abiUniswapSwapRouter, user); // Writable contract instance
 
     writeTransaction = await contractUniswapSwapRouter.exactInputSingle({
         tokenIn: WETH_ADDRESS,
         tokenOut: USDT_ADDRESS,
         fee: UNISWAP_POOL_FEE,
-        recipient: contractAccount.address,
+        recipient: contractAccount.address, // The Account
         deadline: BigNumber.from(blockTimeStamp + 600),
         amountIn: value10Overrides.value,
         amountOutMinimum: BigNumber.from(0),
         sqrtPriceLimitX96: 0,
     }, value10Overrides);
 
-    console.log(`test`)
+    writeTransaction = await contractUniswapSwapRouter.exactInputSingle({
+        tokenIn: WETH_ADDRESS,
+        tokenOut: USDT_ADDRESS,
+        fee: UNISWAP_POOL_FEE,
+        recipient: user.address, // The User
+        deadline: BigNumber.from(blockTimeStamp + 600),
+        amountIn: value10Overrides.value,
+        amountOutMinimum: BigNumber.from(0),
+        sqrtPriceLimitX96: 0,
+    }, value10Overrides);
+
+    // writeTransaction = await contractUniswapSwapRouter.exactInputSingle({
+    //     tokenIn: WETH_ADDRESS,
+    //     tokenOut: USDT_ADDRESS,
+    //     fee: UNISWAP_POOL_FEE,
+    //     recipient: signers[7].address, // The signer7
+    //     deadline: BigNumber.from(blockTimeStamp + 600),
+    //     amountIn: value10Overrides.value,
+    //     amountOutMinimum: BigNumber.from(0),
+    //     sqrtPriceLimitX96: 0,
+    // }, value10Overrides);
 
     console.log(
         `+ Account deployed to the address ${contractAccount.address} on the ${networkName}.\n`,
         `  ↳ The ether(s) sent from the User EOA to the Account contract: ${await hre.ethers.provider.getBalance(contractAccount.address)}\n`,
         `  ↳ The ether(s) deposited from the Account contract to the EntryPoint: ${depositsAccount[0] as BigNumber}.\n`,
-        `  ↳ The USDT sent from the User EOA to the Account contract:: ${await contractUsdt.balanceOf(contractAccount.address)}.`,
+        `  ↳ The USDT sent from the User EOA to the Account contract: ${await contractUsdt.balanceOf(contractAccount.address)}.\n`,
+        `  ↳ The USDT sent from the User EOA to the User: ${await contractUsdt.balanceOf(user.address)}.\n`,
+        `  ↳ The USDT sent from the User EOA to the Signer7: ${await contractUsdt.balanceOf(signers[7].address)}.\n`,
     )
 }
 

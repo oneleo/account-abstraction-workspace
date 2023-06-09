@@ -8,9 +8,12 @@ import * as TypesErc20Factory from "@/../typechain-types/@openzeppelin/contracts
 
 import * as TypesEntryPoint from "@/../typechain-types/@account-abstraction/contracts/EntryPoint"
 
-import { abi as abiAccount } from "@account-abstraction/contracts/artifacts/SimpleAccount.json"
-import { abi as abiErc20 } from "@openzeppelin/contracts/build/contracts/ERC20.json"
+// Avoid using "as" to prevent errors related to "Should not import the named export 'xxx' (imported as 'xxx') from default-exporting module (only default export is available soon)".
+import jsonEntryPoint from "@account-abstraction/contracts/artifacts/EntryPoint.json"
+import jsonAccount from "@account-abstraction/contracts/artifacts/SimpleAccount.json"
+import jsonErc20 from "@openzeppelin/contracts/build/contracts/ERC20.json"
 
+// If CSS is imported here, it will generate an error related to "The resource <URL> was preloaded using link preload but not used within a few seconds from the window’s load event. Please make sure it has an appropriate as value and it is preloaded intentionally.".
 import "./aa.css"
 
 const debug = false
@@ -64,6 +67,9 @@ const defaultUserOp: UserOp.IUserOperation = {
 }
 
 export const UserOperation = () => {
+    // -----------------
+    // -- React Hooks --
+    // -----------------
     const [userOp, setUserOp] = React.useState<UserOp.IUserOperation>(defaultUserOp)
     const [userOpTemp, setUserOpTemp] = React.useState<UserOp.IUserOperation>(defaultUserOp)
 
@@ -75,31 +81,9 @@ export const UserOperation = () => {
 
     const [error, setError] = React.useState<string>("")
 
-    React.useEffect(() => {
-        if (debug) {
-            logUserOp(userOp)
-        }
-    }, [userOp])
-
-    React.useEffect(() => {
-        setUserOp(userOpTemp)
-    }, [userOpTemp])
-
-    // Reset userOp
-    const handleResetUserOp = () => {
-        setUserOp(defaultUserOp)
-    }
-
-    const handleAANonceSeqPluseOne = () => {
-        setUserOp({
-            ...userOp,
-            nonce: encodeAANonce(
-                AA_NONCE_KEY,
-                decodeAANonce(Ethers5.BigNumber.from(userOp.nonce)).seq.add(1),
-            ),
-        })
-    }
-
+    // -------------
+    // -- 一般函數 --
+    // -------------
     const formatUserOp = (up: UserOp.IUserOperation) => {
         return {
             sender: Ethers5.utils.getAddress(up.sender),
@@ -115,6 +99,107 @@ export const UserOperation = () => {
             signature: Ethers5.utils.hexlify(up.signature),
         }
     }
+
+    // ----------------------
+    // -- React Use Effect --
+    // ----------------------
+    React.useEffect(() => {
+        if (debug) {
+            logUserOp(userOp)
+        }
+    }, [userOp])
+
+    React.useEffect(() => {
+        setUserOp(userOpTemp)
+    }, [userOpTemp])
+
+    // ----------------------
+    // -- React 一般按鈕事件 --
+    // ----------------------
+    // Reset userOp
+    const handleResetUserOp = () => {
+        setUserOp(defaultUserOp)
+    }
+
+    const handleAANonceSeqPluseOne = () => {
+        setUserOp({
+            ...userOp,
+            nonce: encodeAANonce(
+                AA_NONCE_KEY,
+                decodeAANonce(Ethers5.BigNumber.from(userOp.nonce)).seq.add(1),
+            ),
+        })
+    }
+
+    const handleListenEvent = () => {
+        if (!window.ethereum) {
+            console.log("MetaMask 未連接，無法監聽事件")
+            return
+        }
+        const provider = new Ethers5.providers.Web3Provider(window.ethereum)
+        const signer = provider.getSigner()
+
+        const contractEntryPoint = new Ethers5.Contract(
+            Addresses.EntryPoint,
+            jsonEntryPoint.abi,
+            provider,
+        ) // Writable contract instance
+
+        contractEntryPoint.on("BeforeExecution", () => {
+            console.log("BeforeExecution")
+        })
+        contractEntryPoint.on("SignatureAggregatorChanged", () => {
+            console.log("SignatureAggregatorChanged")
+        })
+        contractEntryPoint.on("UserOperationRevertReason", () => {
+            console.log("UserOperationRevertReason")
+        })
+        contractEntryPoint.on("AccountDeployed", () => {
+            console.log("AccountDeployed")
+        })
+        contractEntryPoint.on(
+            "UserOperationEvent",
+            (
+                userOpHash,
+                sender,
+                paymaster,
+                nonce,
+                success,
+                actualGasCost,
+                actualGasUsed,
+                event,
+            ) => {
+                const transferEvent = {
+                    userOpHash: userOpHash,
+                    sender: sender,
+                    paymaster: paymaster,
+                    nonce: nonce,
+                    success: success,
+                    actualGasCost: actualGasCost,
+                    actualGasUsed: actualGasUsed,
+                    event: event,
+                }
+                console.log(`UserOperationEvent: ${JSON.stringify(transferEvent, null, 4)}`)
+            },
+        )
+
+        const contractErc20 = new Ethers5.Contract(USDT_ADDRESS, jsonErc20.abi, provider) // Writable contract instance
+
+        contractErc20.on("Transfer", (from, to, value, event) => {
+            const transferEvent = {
+                from: from,
+                to: to,
+                value: value,
+                eventData: event,
+            }
+            console.log(`Transfer: ${JSON.stringify(transferEvent, null, 4)}`)
+        })
+        console.log(`正在監聽事件`)
+    }
+
+    // ----------------------------------------
+    // -- React 按鈕事件（指定 Hook 就位後執行） --
+    // ----------------------------------------
 
     // Button Handler: Set the Address type and Sign
     const handleAddress = React.useCallback(async () => {
@@ -156,12 +241,15 @@ export const UserOperation = () => {
                 Ethers5.utils.parseEther("1"), // value
                 Ethers5.utils.arrayify("0x"), // func
             ]
-            console.log(`tokenSymbol: ${tokenSymbol}`)
-            console.log(`executeArgs: ${executeArgs}`)
+            if (debug) {
+                console.log(`tokenSymbol: ${tokenSymbol}`)
+                console.log(`executeArgs: ${executeArgs}`)
+            }
         }
 
         if (tokenSymbol === "USDT") {
-            const ifaceErc20 = new Ethers5.utils.Interface(abiErc20)
+            const ifaceErc20 = new Ethers5.utils.Interface(jsonErc20.abi)
+
             const encodeTransfer = ifaceErc20.encodeFunctionData("transfer", [
                 Ethers5.utils.getAddress(toAddress),
                 Ethers5.BigNumber.from(tokenAmount),
@@ -171,19 +259,20 @@ export const UserOperation = () => {
                 Ethers5.BigNumber.from(0), // value
                 encodeTransfer, // func
             ]
-            console.log(`tokenSymbol: ${tokenSymbol}`)
-            console.log(`encodeTransfer: ${encodeTransfer}`)
-            console.log(`executeArgs: ${executeArgs}`)
+            if (debug) {
+                console.log(`tokenSymbol: ${tokenSymbol}`)
+                console.log(`encodeTransfer: ${encodeTransfer}`)
+                console.log(`executeArgs: ${executeArgs}`)
+            }
         }
 
-        const ifaceAccount = new Ethers5.utils.Interface(abiAccount)
+        const ifaceAccount = new Ethers5.utils.Interface(jsonAccount.abi)
         const callData = ifaceAccount.encodeFunctionData("execute", executeArgs)
 
         // Get userOp sig by Builder
         const builder = new UserOp.UserOperationBuilder()
             .setPartial({
                 ...userOp,
-                // nonce: encodeAANonce(AA_NONCE_KEY, 999), // AA25 invalid account nonce
                 sender: Addresses.Account, // Set the sender, callData
                 callData: callData,
             })
@@ -192,6 +281,8 @@ export const UserOperation = () => {
             Addresses.EntryPoint,
             await provider.getSigner().getChainId(),
         )
+
+        console.log()
 
         // Update the value to userOpTemp
         setUserOpTemp(formatUserOp(userOpWithSig))
@@ -215,17 +306,6 @@ export const UserOperation = () => {
                 signer,
             )
 
-            // const entryPointNonce = await contractEntryPoint.getNonce(
-            //     Addresses.Account,
-            //     18,
-            //     gasOverrides,
-            // )
-
-            // const userOpHashByEntryPoint = await contractEntryPoint.getUserOpHash(
-            //     userOpWithSig as TypesEntryPoint.UserOperationStructOutput,
-            //     gasOverrides,
-            // )
-
             console.log(`// [debug] Signer Address: ${await signer.getAddress()}`)
             console.log(`// [debug] Chain Id: ${await signer.getChainId()}`)
             console.log(`Account Owner: ${await contractAccount.owner()}`)
@@ -239,9 +319,6 @@ export const UserOperation = () => {
             } catch (err: unknown) {
                 resolveErrorMsg(err as Error)
             }
-
-            // const contractUsdt = TypesErc20Factory.ERC20__factory.connect(USDT_ADDRESS, signer)
-            // console.log(`${toAddress}'s USDT is ${await contractUsdt.balanceOf(toAddress)}`)
         }
     }, [userOp, tokenSymbol, toAddress, tokenAmount])
 
@@ -253,7 +330,7 @@ export const UserOperation = () => {
 
         const provider = new Ethers5.providers.Web3Provider(window.ethereum)
         const signer = provider.getSigner()
-        const ifaceAccount = new Ethers5.utils.Interface(abiAccount)
+        const ifaceAccount = new Ethers5.utils.Interface(jsonAccount.abi)
         const callData = ifaceAccount.encodeFunctionData("execute", [
             Addresses.signers7,
             Ethers5.utils.parseEther("0.5"),
@@ -662,6 +739,7 @@ export const UserOperation = () => {
                         {error && <text className="Error">{`error: ${error}`}</text>}
                     </div>
                     <div>
+                        <div>----------</div>
                         <div>
                             <input disabled={!!error} type="submit" value="Submit" />
                         </div>
@@ -678,21 +756,26 @@ export const UserOperation = () => {
         <div>
             <div>
                 <div>
-                    <button onClick={() => handleAddress()}>Set the Address type and Sign</button>
+                    <button onClick={() => handleAddress()}>Sign a nothing transaction</button>
                 </div>
                 <div>
                     <button onClick={() => handleTransfer()}>
-                        Set the Transferred type and Sign
+                        Sign an ETH/USDT transform transaction
                     </button>
                 </div>
                 <div>
                     <button onClick={() => handleTransferWithCtx()}>
-                        Set the Transferred type with Ctx and Sign
+                        (Test) Sign a test tx with Ctx
                     </button>
                 </div>
+                <div>----------</div>
                 <div>
                     <button onClick={() => handleAANonceSeqPluseOne()}>AA Nonce Seq + 1</button>
                 </div>
+                <div>
+                    <button onClick={() => handleListenEvent()}>AA Listen Event On</button>
+                </div>
+                <div>----------</div>
             </div>
             <div>{userOp && aaForm(userOp)}</div>
         </div>
