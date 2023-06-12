@@ -63,8 +63,8 @@ It will start up at [http://localhost:8545](http://localhost:8545).
 - Start a React service on localhost
 
 ```shell
-% pnpm --filter ${PKG1} typechain
-% PKG1="webapp" && pnpm --filter ${PKG1} dev
+% PKG2="webapp" && pnpm --filter ${PKG2} typechain
+% pnpm --filter ${PKG2} dev
 ```
 
 It will start up at [http://localhost:3000/account-abstraction](http://localhost:3000/account-abstraction).
