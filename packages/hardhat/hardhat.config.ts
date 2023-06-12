@@ -3,7 +3,7 @@ import "@nomicfoundation/hardhat-toolbox";
 import "dotenv/config"
 
 const accounts = {
-  mnemonic: process.env.MNEMONIC || "test test test test test test test test test test test junk",
+  mnemonic: process.env.MNEMONIC || "test test test test test test test test test test test tip",
 }
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || ""
 const ALCHEMY_TOKEN = process.env.ALCHEMY_TOKEN || ""
@@ -27,7 +27,7 @@ const config: HardhatUserConfig = {
       accounts,
       forking: {
         url: `https://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_TOKEN}`,
-        blockNumber: 16666666,
+        blockNumber: 17444444,
       },
     },
     localhost: {
