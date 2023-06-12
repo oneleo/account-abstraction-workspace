@@ -11,8 +11,8 @@
 - Set Hardhat environment
 
 ```shell
-% cp .env.example .env
-% code .env
+% PKG1="hardhat" && cp packages/${PKG1}/.env.example packages/${PKG1}/.env
+% code packages/${PKG1}/.env
 
 ### Edit .env
 ALCHEMY_TOKEN="Created_by_https://www.alchemy.com/"
