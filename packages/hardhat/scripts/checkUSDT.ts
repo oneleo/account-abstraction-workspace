@@ -8,6 +8,7 @@ const debug = false
 
 const USDT_ADDRESS = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
 
+const USER_ADDRESS = "0x5704Cf1BaeAb8e893d8FF493E0d8CF711E4BDE99"
 const SIGNER6_ADDRESS = "0x81578FBe3Ca2941e50404Ec4E713625169C33e53"
 const SIGNER7_ADDRESS = "0xf4fE3D5e739ade5f870CF421521A6fFDb18D1EE5"
 const ACCOUNT_ADDRESS = "0x40fDEaDE1360334b60218959fE077d94d85bAa3F"
@@ -16,6 +17,7 @@ async function main() {
     const contractUsdt = await hre.ethers.getContractAt(abiErc20, USDT_ADDRESS); // Read contract
     console.log(
         `↳ The Account's USDT amount: ${await contractUsdt.balanceOf(ACCOUNT_ADDRESS)}.\n`,
+        `↳ The User's USDT amount: ${await contractUsdt.balanceOf(USER_ADDRESS)}.\n`,
         `↳ The Signer6's USDT amount: ${await contractUsdt.balanceOf(SIGNER6_ADDRESS)}.\n`,
         `↳ The Signer7's USDT amount: ${await contractUsdt.balanceOf(SIGNER7_ADDRESS)}.\n`,
     )

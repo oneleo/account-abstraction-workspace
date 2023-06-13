@@ -2,7 +2,7 @@ import hre from "hardhat";
 import { BigNumber, Overrides, PayableOverrides, ContractTransaction, utils } from "ethers"
 
 // Import contract ABIs.
-import { abi as abiTest, bytecode as bytecodeTest } from "../artifacts/contracts/Lock.sol/Lock.json"
+import { abi as abiContractStorage, bytecode as bytecodeContractStorage } from "../artifacts/contracts/ContractStorage.sol/ContractStorage.json"
 import { abi as abiErc20 } from "@openzeppelin/contracts/build/contracts/ERC20.json"
 import { abi as abiErc1967Proxy, bytecode as bytecodeErc1967Proxy } from "@openzeppelin/contracts/build/contracts/ERC1967Proxy.json"
 import abiAggregatorV2V3Interface from "@chainlink/contracts/abi/v0.8/AggregatorV2V3Interface.json"
@@ -33,6 +33,7 @@ async function main() {
     const signers = await hre.ethers.getSigners()
     const aAOwner = signers[9]
     const paymasterOwner = signers[8]
+    const storageOwner = signers[7]
     const user = signers[0]
     const blockTimeStamp = (await hre.ethers.provider.getBlock(await hre.ethers.provider.getBlockNumber())).timestamp
     console.log(
@@ -57,7 +58,25 @@ async function main() {
         value: hre.ethers.utils.parseEther("10"),
     }
 
+    // Deploy the ContractStorage contract on localhost.
+    const contractStorage = await (
+        await hre.ethers.getContractFactory(abiContractStorage, bytecodeContractStorage, storageOwner)
+    ).deploy(gasOverrides)
+    writeTransaction = await contractStorage.setSigner(9, aAOwner.address, gasOverrides) // Store the address
+    writeTransaction = await contractStorage.setSigner(8, paymasterOwner.address, gasOverrides) // Store the address
+    writeTransaction = await contractStorage.setSigner(7, storageOwner.address, gasOverrides) // Store the address
+    writeTransaction = await contractStorage.setSigner(6, signers[6].address, gasOverrides) // Store the address
+    writeTransaction = await contractStorage.setSigner(5, signers[5].address, gasOverrides) // Store the address
+    writeTransaction = await contractStorage.setSigner(4, signers[4].address, gasOverrides) // Store the address
+    writeTransaction = await contractStorage.setSigner(3, signers[3].address, gasOverrides) // Store the address
+    writeTransaction = await contractStorage.setSigner(2, signers[2].address, gasOverrides) // Store the address
+    writeTransaction = await contractStorage.setSigner(1, signers[1].address, gasOverrides) // Store the address
+    writeTransaction = await contractStorage.setSigner(0, user.address, gasOverrides) // Store the address
+    console.log(
+        `+ ContractStorage deployed to the address ${contractStorage.address} on the ${networkName}.`
+    )
 
+    // Get the USDT contract instance.
     const contractUsdt = await hre.ethers.getContractAt(abiErc20, USDT_ADDRESS); // Read-only contract instance
     const usdtAggregator = await hre.ethers.getContractAt(abiAggregatorV2V3Interface, USDT_ETH_CHAINLINK) // Read-only contract instance
 
@@ -65,6 +84,8 @@ async function main() {
     const contractUsdtOracle = await (
         await hre.ethers.getContractFactory(abiUsdtOracle, bytecodeUsdtOracle, aAOwner)
     ).deploy(usdtAggregator.address, gasOverrides)
+    writeTransaction = await contractStorage.setUsdtOracleAddress(contractUsdtOracle.address, gasOverrides) // Store the address
+    writeTransaction = await contractStorage.setContractOwner(contractUsdtOracle.address, aAOwner.address, gasOverrides) // Store the address
     console.log(
         `+ UsdtOracle deployed to the address ${contractUsdtOracle.address} on the ${networkName}.`
     )
@@ -73,6 +94,8 @@ async function main() {
     const contractEntryPoint = await (
         await hre.ethers.getContractFactory(abiEntryPoint, bytecodeEntryPoint, aAOwner)
     ).deploy(gasOverrides)
+    writeTransaction = await contractStorage.setEntryPointAddress(contractEntryPoint.address, gasOverrides) // Store the address
+    writeTransaction = await contractStorage.setContractOwner(contractEntryPoint.address, aAOwner.address, gasOverrides) // Store the address
     console.log(`+ EntryPoint deployed to the address ${contractEntryPoint.address} on the ${networkName}.`)
 
     // Deploy the Paymaster contract on localhost.
@@ -90,16 +113,20 @@ async function main() {
         console.log(`// [debug] Paymaster.deposit():`, JSON.stringify(writeTransaction))
     }
     // To obtain the ether(s) deposited from the Paymaster contract to the EntryPoint.
-    const depositsPaymaster = await contractEntryPoint.deposits(contractPaymaster.address)
+    const depositsAmountFromPaymaster = await contractEntryPoint.deposits(contractPaymaster.address)
+    writeTransaction = await contractStorage.setPaymasterAddress(contractPaymaster.address, gasOverrides) // Store the address
+    writeTransaction = await contractStorage.setContractOwner(contractPaymaster.address, paymasterOwner.address, gasOverrides) // Store the address
     console.log(
         `+ Paymaster deployed to the address ${contractPaymaster.address} on the ${networkName}.\n`,
-        `  ↳ The ether(s) deposited from the Paymaster contract to the EntryPoint: ${depositsPaymaster[0]}.`,
+        `  ↳ The ether(s) deposited from the Paymaster contract to the EntryPoint: ${depositsAmountFromPaymaster[0]}.`,
     )
 
     // Deploy the AccountFactory contract on localhost.
     const contractAccountFactory = await (
         await hre.ethers.getContractFactory(abiAccountFactory, bytecodeAccountFactory, aAOwner)
     ).deploy(contractEntryPoint.address)
+    writeTransaction = await contractStorage.setAccountFactoryAddress(contractAccountFactory.address, gasOverrides) // Store the address
+    writeTransaction = await contractStorage.setContractOwner(contractAccountFactory.address, aAOwner.address, gasOverrides) // Store the address
     console.log(
         `+ AccountFactory deployed to the address ${contractAccountFactory.address} on the ${networkName}.`
     )
@@ -108,9 +135,12 @@ async function main() {
     const contractErc1967Proxy = await (
         await hre.ethers.getContractFactory(abiErc1967Proxy, bytecodeErc1967Proxy, aAOwner)
     ).deploy(contractAccountFactory.address, DATA, gasOverrides)
+    writeTransaction = await contractStorage.setAccountFactoryProxyAddress(contractErc1967Proxy.address, gasOverrides) // Store the address
+    writeTransaction = await contractStorage.setContractOwner(contractErc1967Proxy.address, aAOwner.address, gasOverrides) // Store the address
     console.log(
         `+ ERC1967Proxy deployed to the address ${contractErc1967Proxy.address} on the ${networkName}.`
     )
+
     // To obtain an instance of the ERC1967Proxy contract using the AccountFactory ABI.
     const contractAccountFactoryProxy = await hre.ethers.getContractAt(abiAccountFactory, contractErc1967Proxy.address);
 
@@ -134,10 +164,10 @@ async function main() {
     if (debug) {
         console.log(`// [debug] Account.addDeposit():`, JSON.stringify(writeTransaction))
     }
-    // To obtain the ether(s) deposited from the Paymaster contract to the EntryPoint.
-    const depositsAccount = await contractEntryPoint.deposits(contractAccount.address)
+    // To obtain the ether(s) deposited from the Account contract to the EntryPoint.
+    const depositsAmountFromAccount = await contractEntryPoint.deposits(contractAccount.address)
     if (debug) {
-        console.log(`// [debug] EntryPoint.deposits():`, JSON.stringify(depositsAccount))
+        console.log(`// [debug] EntryPoint.deposits():`, JSON.stringify(depositsAmountFromAccount))
     }
 
     // The user exchanges ethers for USDT, which are then transferred to the Account contract.
@@ -176,13 +206,16 @@ async function main() {
     //     sqrtPriceLimitX96: 0,
     // }, value10Overrides);
 
+    writeTransaction = await contractStorage.setAccount(user.address, SALT, contractAccount.address, gasOverrides) // Store the address
+    writeTransaction = await contractStorage.setContractOwner(contractAccount.address, user.address, gasOverrides) // Store the address
     console.log(
         `+ Account deployed to the address ${contractAccount.address} on the ${networkName}.\n`,
         `  ↳ The ether(s) sent from the User EOA to the Account contract: ${await hre.ethers.provider.getBalance(contractAccount.address)}\n`,
-        `  ↳ The ether(s) deposited from the Account contract to the EntryPoint: ${depositsAccount[0] as BigNumber}.\n`,
+        `  ↳ The ether(s) deposited from the Account contract to the EntryPoint: ${depositsAmountFromAccount[0] as BigNumber}.\n`,
         `  ↳ The USDT sent from the User EOA to the Account contract: ${await contractUsdt.balanceOf(contractAccount.address)}.\n`,
         `  ↳ The USDT sent from the User EOA to the User: ${await contractUsdt.balanceOf(user.address)}.\n`,
         `  ↳ The USDT sent from the User EOA to the Signer7: ${await contractUsdt.balanceOf(signers[7].address)}.\n`,
+        `+ ContractStorage deployed to the address ${contractStorage.address} on the ${networkName}.\n`,
     )
 }
 
