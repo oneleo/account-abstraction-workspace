@@ -64,7 +64,7 @@ It will start up at [http://localhost:8545](http://localhost:8545).
 
 ```shell
 % PKG2="webapp" && pnpm --filter ${PKG2} typechain
-% pnpm --filter ${PKG2} dev
+% PKG2="webapp" && pnpm --filter ${PKG2} dev
 ```
 
 It will start up at [http://localhost:3000/account-abstraction](http://localhost:3000/account-abstraction).

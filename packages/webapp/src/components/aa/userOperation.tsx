@@ -1,7 +1,10 @@
 import * as React from "react"
 import * as Ethers5 from "ethers"
 import * as UserOp from "userop"
+
 import * as Addresses from "./addressea"
+import * as Utils from "./utils"
+
 import * as TypesFactoryEntryPoint from "@/../typechain-types/@account-abstraction/contracts/factories/EntryPoint__factory"
 import * as TypesFactoryAccount from "@/../typechain-types/@account-abstraction/contracts/factories/SimpleAccount__factory"
 import * as TypesFactoryErc20 from "@/../typechain-types/@openzeppelin/contracts/factories/ERC20__factory"
@@ -15,45 +18,18 @@ import jsonAccount from "@account-abstraction/contracts/artifacts/SimpleAccount.
 import jsonErc20 from "@openzeppelin/contracts/build/contracts/ERC20.json"
 
 // If CSS is imported here, it will generate an error related to "The resource <URL> was preloaded using link preload but not used within a few seconds from the window’s load event. Please make sure it has an appropriate as value and it is preloaded intentionally.".
-import "./aa.css"
+import "./aa.scss"
 
 const debug = false
 
 const AA_DEFAULT_NONCE_KEY = 18
-const AA_DEFAULT_DEPLOY_SALT = Ethers5.BigNumber.from(999666333)
+// const AA_DEFAULT_DEPLOY_SALT = Ethers5.BigNumber.from(999666333)
 // const AA_DEFAULT_DEPLOY_SALT = Ethers5.BigNumber.from(333666999)
-
 const USDT_ADDRESS = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
-
-const encodeAANonce = (key: Ethers5.BigNumberish, seq: Ethers5.BigNumberish) => {
-    const maxUint192 = Ethers5.BigNumber.from("0xffffffffffffffffffffffff")
-    const maxUint64 = Ethers5.BigNumber.from("0xffffffffffffffff")
-    const shiftedKey = Ethers5.BigNumber.from(key).and(maxUint192).shl(64)
-    const combinedValue = shiftedKey.or(Ethers5.BigNumber.from(seq).and(maxUint64))
-    const uint256Value = Ethers5.utils.hexZeroPad(combinedValue.toHexString(), 32)
-
-    return Ethers5.BigNumber.from(uint256Value)
-}
-
-const decodeAANonce = (nonce: Ethers5.BigNumberish) => {
-    const maxUint192 = Ethers5.BigNumber.from("0xffffffffffffffffffffffff")
-    const maxUint64 = Ethers5.BigNumber.from("0xffffffffffffffff")
-
-    const uint256Value = Ethers5.utils.hexZeroPad(Ethers5.BigNumber.from(nonce).toHexString(), 32)
-    const combinedValue = Ethers5.BigNumber.from(uint256Value)
-
-    const seq = combinedValue.and(maxUint64)
-    const shiftedKey = combinedValue.shr(64).and(maxUint192)
-
-    return {
-        key: shiftedKey,
-        seq: seq,
-    }
-}
 
 const defaultUserOp: UserOp.IUserOperation = {
     sender: Ethers5.constants.AddressZero,
-    nonce: encodeAANonce(AA_DEFAULT_NONCE_KEY, 0),
+    nonce: Utils.encodeAANonce(AA_DEFAULT_NONCE_KEY, 0),
     initCode: "0x",
     callData: "0x",
     callGasLimit: 70000,
@@ -70,19 +46,25 @@ export const UserOperation = () => {
     // -- React Hooks --
     // -----------------
     const [userOp, setUserOp] = React.useState<UserOp.IUserOperation>(defaultUserOp)
+    const [isUserOpVisible, setIsUserOpVisible] = React.useState(false)
 
     const [tokenSymbol, setTokenSymbol] = React.useState<string>("ETH")
     const [toAddress, setToAddress] = React.useState<string>(Addresses.signer6)
     const [tokenAmount, setTokenAmount] = React.useState<Ethers5.BigNumberish>(
         Ethers5.BigNumber.from("1000000000000000000"),
     )
-
+    // Metamask State
     const [metamaskAddress, setMetamaskAddress] = React.useState<string>("")
     const [metamaskBalanceEth, setMetamaskBalanceEth] = React.useState<Ethers5.BigNumberish>(
         Ethers5.BigNumber.from(0),
     )
     const [metamaskBalanceUsdt, setMetamaskBalanceUsdt] = React.useState<Ethers5.BigNumberish>(
         Ethers5.BigNumber.from(0),
+    )
+
+    // AA Account State
+    const [aADeploySalt, setAADeploySalt] = React.useState<Ethers5.BigNumberish>(
+        Ethers5.BigNumber.from(999666333),
     )
     const [aAAccountAddress, setAAAccountAddress] = React.useState<string>("")
     const [aABalanceEth, setAABalanceEth] = React.useState<Ethers5.BigNumberish>(
@@ -94,7 +76,7 @@ export const UserOperation = () => {
         Ethers5.BigNumber.from(0),
     )
     const [aANonce, setAANonce] = React.useState<Ethers5.BigNumberish>(
-        encodeAANonce(AA_DEFAULT_NONCE_KEY, 0),
+        Utils.encodeAANonce(AA_DEFAULT_NONCE_KEY, 0),
     )
 
     const [error, setError] = React.useState<string>("")
@@ -123,7 +105,7 @@ export const UserOperation = () => {
     // ----------------------
     React.useEffect(() => {
         if (debug) {
-            logUserOp(userOp)
+            Utils.logUserOp(userOp)
         }
     }, [userOp])
 
@@ -154,7 +136,7 @@ export const UserOperation = () => {
             // 透過 User 取得 Account 地址
             const accountAddress = await contractAccountFactoryProxy.getAddress(
                 metamaskAddress,
-                AA_DEFAULT_DEPLOY_SALT,
+                aADeploySalt,
             )
 
             // 偵測是否已部署 Account 合約
@@ -171,7 +153,7 @@ export const UserOperation = () => {
                 )
 
                 setAANonce(
-                    encodeAANonce(
+                    Utils.encodeAANonce(
                         AA_DEFAULT_NONCE_KEY,
                         await contractEntryPoint.getNonce(accountAddress, AA_DEFAULT_NONCE_KEY),
                     ),
@@ -189,7 +171,7 @@ export const UserOperation = () => {
         return function () {
             clearInterval(id)
         }
-    }, [metamaskAddress]) // 當與 Metamask 連接，並取得帳號地址時啟動
+    }, [metamaskAddress, aADeploySalt]) // 當與 Metamask 連接，並取得帳號地址時啟動
 
     // ----------------------
     // -- React 一般按鈕事件 --
@@ -227,7 +209,7 @@ export const UserOperation = () => {
     }
 
     // 透過 AccountFactory 部署 Account 合約
-    const handleDeployAccount = async () => {
+    const handleDeployAccount = React.useCallback(async () => {
         if (!window.ethereum) {
             return
         }
@@ -253,10 +235,10 @@ export const UserOperation = () => {
         // 部署新的 Account
         writeTransaction = await contractAccountFactoryProxy.createAccount(
             metamaskAddress,
-            AA_DEFAULT_DEPLOY_SALT,
+            aADeploySalt,
             gasOverrides,
         )
-    }
+    }, [metamaskAddress, aADeploySalt])
 
     // 轉 10 ETH、10 USDT 給 Account，為 Account 在 EntryPoint 存入 10 ETH
     const handleDepositAccount = async () => {
@@ -300,6 +282,16 @@ export const UserOperation = () => {
         writeTransaction = await contractAccount.addDeposit(value10Overrides)
     }
 
+    const handleShowHideUserOp = () => {
+        if (isUserOpVisible) {
+            setIsUserOpVisible(false)
+        }
+
+        if (!isUserOpVisible) {
+            setIsUserOpVisible(true)
+        }
+    }
+
     // Reset userOp
     const handleResetUserOp = () => {
         setUserOp(defaultUserOp)
@@ -308,9 +300,9 @@ export const UserOperation = () => {
     const handleAANonceSeqPluseOne = () => {
         setUserOp({
             ...userOp,
-            nonce: encodeAANonce(
+            nonce: Utils.encodeAANonce(
                 AA_DEFAULT_NONCE_KEY,
-                decodeAANonce(Ethers5.BigNumber.from(userOp.nonce)).seq.add(1),
+                Utils.decodeAANonce(Ethers5.BigNumber.from(userOp.nonce)).seq.add(1),
             ),
         })
     }
@@ -438,7 +430,7 @@ export const UserOperation = () => {
         const builder = new UserOp.UserOperationBuilder()
             .setPartial({
                 ...userOp,
-                nonce: encodeAANonce(
+                nonce: Utils.encodeAANonce(
                     AA_DEFAULT_NONCE_KEY,
                     await contractEntryPoint.getNonce(aAAccountAddress, AA_DEFAULT_NONCE_KEY),
                 ),
@@ -486,7 +478,7 @@ export const UserOperation = () => {
             console.log(`// [debug] Chain Id: ${await signer.getChainId()}`)
             console.log(`// [debug] EntryPoint Address: ${contractEntryPoint.address}`)
 
-            logUserOp(userOp)
+            Utils.logUserOp(userOp)
         }
 
         let writeTransaction: Ethers5.ContractTransaction
@@ -509,11 +501,27 @@ export const UserOperation = () => {
                 gasOverrides,
             )
         } catch (err: unknown) {
-            resolveErrorMsg(err as Error)
+            Utils.resolveAAErrorMsg(err as Error)
         }
     }
 
-    const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const handleAADeploySaltChange = (
+        event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+    ) => {
+        const { id, value } = event.target
+        switch (id) {
+            case "aADeploySalt":
+                setAADeploySalt(event.target.value)
+                break
+            default:
+                setAADeploySalt(Ethers5.BigNumber.from(0))
+                break
+        }
+    }
+
+    const handleUserOpFormChange = (
+        event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+    ) => {
         const { id, value } = event.target
         try {
             switch (id) {
@@ -678,78 +686,166 @@ export const UserOperation = () => {
         }
     }
 
-    const aaForm = (userOp: UserOp.IUserOperation) => {
+    const formMetaMask = () => {
         return (
             <>
-                <form onSubmit={handleSubmit}>
-                    <div className="form-input">
-                        <label>[Transfer token]</label>
-                        <div>
-                            <label>Token:</label>
-                            <select
-                                id="tokenSymbol"
-                                value={`${tokenSymbol}`}
-                                onChange={handleChange}
-                            >
-                                <option value="ETH">ETH</option>
-                                <option value="USDT">USDT</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label>To（預設為 Signer 7）：</label>
-                            <input
-                                type="text"
-                                id="toAddress"
-                                placeholder="請點選輸入"
-                                value={`${toAddress}`}
-                                onChange={handleChange}
-                            />
-                        </div>
+                <div className="metamask-form">
+                    <button
+                        disabled={!(metamaskAddress === "")}
+                        type="button"
+                        onClick={() => onClickConnect()}
+                    >
+                        Connect MetaMask
+                    </button>
+                    <button
+                        disabled={!(metamaskAddress !== "")}
+                        type="button"
+                        onClick={() => onClickDisconnect()}
+                    >
+                        Disconnect MetaMask
+                    </button>
+                    <section>
+                        <p>Metamask address: {metamaskAddress.toString()}</p>
 
+                        <p>ETH Balance of Metamask address: {metamaskBalanceEth.toString()}</p>
+
+                        <p>USDT Balance of Metamask address: {metamaskBalanceUsdt.toString()}</p>
+                    </section>
+                </div>
+            </>
+        )
+    }
+
+    const formAADeploy = () => {
+        return (
+            <>
+                <div className="aa-deploy-form">
+                    <span>
+                        <p>Salt:</p>
+                        <input
+                            type="text"
+                            id="aADeploySalt"
+                            value={`${aADeploySalt}`}
+                            onChange={handleAADeploySaltChange}
+                        />
+                    </span>
+                    <span>
+                        <button
+                            disabled={!(metamaskAddress !== "" && aAAccountAddress === "")} // 當 Metamask 已連線，且 Account 沒有地址時才可點擊
+                            type="button"
+                            onClick={() => handleDeployAccount()}
+                        >
+                            Deploy a AA Account
+                        </button>
+                        <button
+                            disabled={!(aAAccountAddress !== "")} // 當 Metamask 尚未連線或 Account 沒有地址時不可點擊
+                            type="button"
+                            onClick={() => handleDepositAccount()}
+                        >
+                            Deposit to AA Account
+                        </button>
+                    </span>
+                    <section>
+                        <p>Address of AA Account: {aAAccountAddress.toString()}</p>
+                        <p>
+                            Nonce of AA Account（Seq = 0 ~ 2 時可免費轉帳）：
+                            {`Key=${Utils.decodeAANonce(
+                                aANonce,
+                            ).key.toString()}、Seq=${Utils.decodeAANonce(aANonce).seq.toString()}`}
+                        </p>
+                        <p>ETH Balance of AA Account: {aABalanceEth.toString()}</p>
+                        <p>USDT Balance of AA Account: {aABalanceUsdt.toString()}</p>
+                        <p>
+                            ETH Balance deposit to EntryPoint from AA Account:{" "}
+                            {aABalanceEthInEntryPoint.toString()}
+                        </p>
+                    </section>
+                </div>
+            </>
+        )
+    }
+
+    const formTransferToken = () => {
+        return (
+            <>
+                <div>
+                    <label>Token:</label>
+                    <select
+                        id="tokenSymbol"
+                        value={`${tokenSymbol}`}
+                        onChange={handleUserOpFormChange}
+                    >
+                        <option value="ETH">ETH</option>
+                        <option value="USDT">USDT</option>
+                    </select>
+                </div>
+                <div>
+                    <label>To：</label>
+                    <input
+                        type="text"
+                        id="toAddress"
+                        value={`${toAddress}`}
+                        onChange={handleUserOpFormChange}
+                    />
+                </div>
+                <div>
+                    <label>Amount:</label>
+                    <input
+                        type="text"
+                        id="tokenAmount"
+                        value={`${tokenAmount}`}
+                        onChange={handleUserOpFormChange}
+                    />
+                </div>
+                <button onClick={() => handleSigATransfer()}>
+                    Sign an ETH/USDT transform transaction
+                </button>
+            </>
+        )
+    }
+
+    const formUserOp = (userOp: UserOp.IUserOperation) => {
+        return (
+            <>
+                <div className="user-op-form">
+                    {/* <form onSubmit={handleSubmit}> */}
+                    {/* <div className="form-input"> */}
+                    <button onClick={() => handleShowHideUserOp()}>Show/Hide UserOp</button>
+                    <form onSubmit={handleSubmit}>
+                        {isUserOpVisible && (
+                            <div>
+                                <label>Sender:</label>
+                                <input
+                                    type="text"
+                                    id="sender"
+                                    value={`${userOp.sender}`}
+                                    onChange={handleUserOpFormChange}
+                                    disabled={true}
+                                />
+                            </div>
+                        )}
                         <div>
-                            <label>Amount(default: 1 unit):</label>
-                            <input
-                                type="text"
-                                id="tokenAmount"
-                                placeholder="請點選輸入"
-                                value={`${tokenAmount}`}
-                                onChange={handleChange}
-                            />
-                        </div>
-                        <label>[UserOp]</label>
-                        <div>
-                            <label>Sender（無法更動）：</label>
-                            <input
-                                type="text"
-                                id="sender"
-                                placeholder="請點選輸入"
-                                value={`${userOp.sender}`}
-                                onChange={handleChange}
-                            />
-                        </div>
-                        <div>
-                            <label>Nonce（無法更動）：</label>
+                            <label>Nonce:</label>
                             <input
                                 type="text"
                                 id="nonce"
-                                placeholder="請點選輸入"
                                 value={`${userOp.nonce}`}
-                                onChange={handleChange}
+                                onChange={handleUserOpFormChange}
+                                disabled={true}
                             />
-                            <label>{`→ Key=${
-                                decodeAANonce(Ethers5.BigNumber.from(userOp.nonce)).key
+                            <p>{`→ Key=${
+                                Utils.decodeAANonce(Ethers5.BigNumber.from(userOp.nonce)).key
                             }、Seq=${
-                                decodeAANonce(Ethers5.BigNumber.from(userOp.nonce)).seq
-                            }`}</label>
+                                Utils.decodeAANonce(Ethers5.BigNumber.from(userOp.nonce)).seq
+                            }`}</p>
                         </div>
                         <div>
                             <label>Init Code:</label>
                             <input
                                 type="text"
                                 id="initCode"
-                                placeholder="請點選輸入"
                                 value={`${userOp.initCode}`}
-                                onChange={handleChange}
+                                onChange={handleUserOpFormChange}
                             />
                         </div>
                         <div>
@@ -757,9 +853,9 @@ export const UserOperation = () => {
                             <input
                                 type="text"
                                 id="callData"
-                                placeholder="請點選輸入"
                                 value={`${userOp.callData}`}
-                                onChange={handleChange}
+                                onChange={handleUserOpFormChange}
+                                disabled={true}
                             />
                         </div>
                         <div>
@@ -767,9 +863,8 @@ export const UserOperation = () => {
                             <input
                                 type="text"
                                 id="callGasLimit"
-                                placeholder="請點選輸入"
                                 value={`${userOp.callGasLimit}`}
-                                onChange={handleChange}
+                                onChange={handleUserOpFormChange}
                             />
                         </div>
                         <div>
@@ -777,9 +872,8 @@ export const UserOperation = () => {
                             <input
                                 type="text"
                                 id="verificationGasLimit"
-                                placeholder="請點選輸入"
                                 value={`${userOp.verificationGasLimit}`}
-                                onChange={handleChange}
+                                onChange={handleUserOpFormChange}
                             />
                         </div>
                         <div>
@@ -787,9 +881,8 @@ export const UserOperation = () => {
                             <input
                                 type="text"
                                 id="preVerificationGas"
-                                placeholder="請點選輸入"
                                 value={`${userOp.preVerificationGas}`}
-                                onChange={handleChange}
+                                onChange={handleUserOpFormChange}
                             />
                         </div>
                         <div>
@@ -797,9 +890,8 @@ export const UserOperation = () => {
                             <input
                                 type="text"
                                 id="maxFeePerGas"
-                                placeholder="請點選輸入"
                                 value={`${userOp.maxFeePerGas}`}
-                                onChange={handleChange}
+                                onChange={handleUserOpFormChange}
                             />
                         </div>
                         <div>
@@ -807,9 +899,8 @@ export const UserOperation = () => {
                             <input
                                 type="text"
                                 id="maxPriorityFeePerGas"
-                                placeholder="請點選輸入"
                                 value={`${userOp.maxPriorityFeePerGas}`}
-                                onChange={handleChange}
+                                onChange={handleUserOpFormChange}
                             />
                         </div>
                         <div>
@@ -817,9 +908,8 @@ export const UserOperation = () => {
                             <input
                                 type="text"
                                 id="paymasterAndData"
-                                placeholder="請點選輸入"
                                 value={`${userOp.paymasterAndData}`}
-                                onChange={handleChange}
+                                onChange={handleUserOpFormChange}
                             />
                         </div>
                         <div>
@@ -827,22 +917,27 @@ export const UserOperation = () => {
                             <input
                                 type="text"
                                 id="signature"
-                                placeholder="請點選輸入"
                                 value={`${userOp.signature}`}
-                                onChange={handleChange}
+                                onChange={handleUserOpFormChange}
+                                disabled={true}
                             />
                         </div>
-                        {error && <text className="Error">{`error: ${error}`}</text>}
-                    </div>
+                        <div>
+                            <input disabled={!!error} type="submit" value="Submit" />
+                        </div>
+                    </form>
+                    <div>{error && <text className="Error">{`error: ${error}`}</text>}</div>
+                    {/* </div> */}
                     <div>
+                        <button onClick={() => handleResetUserOp()}>Reset the UserOp</button>
+                    </div>
+                    {/* <div>
                         <div>----------</div>
                         <div>
                             <input disabled={!!error} type="submit" value="Submit" />
                         </div>
-                    </div>
-                </form>
-                <div>
-                    <button onClick={() => handleResetUserOp()}>Reset the UserOp</button>
+                    </div> */}
+                    {/* </form> */}
                 </div>
             </>
         )
@@ -852,113 +947,16 @@ export const UserOperation = () => {
         <>
             <h3>Explore Account Abstraction</h3>
             <div>
-                <div></div>
-                <div>
-                    <button
-                        disabled={!!aAAccountAddress}
-                        type="button"
-                        onClick={() => onClickConnect()}
-                    >
-                        Connect MetaMask
-                    </button>
-                    |
-                    <button
-                        disabled={!aAAccountAddress}
-                        type="button"
-                        onClick={() => onClickDisconnect()}
-                    >
-                        Disconnect MetaMask
-                    </button>
-                    <p>Metamask address: {metamaskAddress.toString()}</p>
-                    <p>ETH Balance of Metamask address: {metamaskBalanceEth.toString()}</p>
-                    <p>USDT Balance of Metamask address: {metamaskBalanceUsdt.toString()}</p>
-                </div>
-                <div>
-                    <button
-                        disabled={!!aAAccountAddress || !metamaskAddress} // 當 Metamask 尚未連線或 Account 沒有地址時不可點擊
-                        type="button"
-                        onClick={() => handleDeployAccount()}
-                    >
-                        Deploy a AA Account
-                    </button>
-                    |
-                    <button
-                        disabled={!aAAccountAddress} // 當 Metamask 尚未連線或 Account 沒有地址時不可點擊
-                        type="button"
-                        onClick={() => handleDepositAccount()}
-                    >
-                        Deposit to AA Account
-                    </button>
-                    <p>Address of AA Account: {aAAccountAddress.toString()}</p>
-                    <p>
-                        Nonce of AA Account（Seq = 0 ~ 2 時可免費轉帳）：
-                        {`Key=${decodeAANonce(aANonce).key.toString()}、Seq=${decodeAANonce(
-                            aANonce,
-                        ).seq.toString()}`}
-                    </p>
-                    <p>ETH Balance of AA Account: {aABalanceEth.toString()}</p>
-                    <p>USDT Balance of AA Account: {aABalanceUsdt.toString()}</p>
-                    <p>
-                        ETH Balance deposit to EntryPoint from AA Account:{" "}
-                        {aABalanceEthInEntryPoint.toString()}
-                    </p>
-                </div>
+                <div>{formMetaMask()}</div>
+                <div>{metamaskAddress && formAADeploy()}</div>
+                <div>{aAAccountAddress && formTransferToken()}</div>
                 <div>----------</div>
                 <div>
-                    <div>
-                        <button onClick={() => handleSigATransfer()}>
-                            Sign an ETH/USDT transform transaction
-                        </button>
-                    </div>
-                    <div>----------</div>
-                    <div>
-                        <button onClick={() => handleAANonceSeqPluseOne()}>AA Nonce Seq + 1</button>
-                    </div>
-                    <div>
-                        <button onClick={() => handleListenEvent()}>AA Listen Event On</button>
-                    </div>
-                    <div>----------</div>
+                    <div></div>
                 </div>
-                <div>{userOp && aaForm(userOp)}</div>
+                <div>{formUserOp(userOp)}</div>
+                {/* <div>{isUserOpVisible && formUserOp(userOp)}</div> */}
             </div>
         </>
     )
-}
-
-const logUserOp = (userOp: UserOp.IUserOperation) => {
-    console.log(`// [Log] UserOp: ${JSON.stringify(userOp)}`)
-}
-
-const resolveErrorMsg = (err: Error) => {
-    const message = err.message.toString()
-    const regex = /return data: (0x[0-9a-fA-F]+)/
-    const match = message.match(regex)
-    const data = match ? match[1] : ""
-
-    const method = Ethers5.utils.hexDataSlice(data, 0, 4)
-    const parms = Ethers5.utils.hexDataSlice(data, 4)
-
-    const errorExecutionResult = Ethers5.utils
-        .id("ExecutionResult(uint256,uint256,uint48,uint48,bool,bytes)")
-        .substring(0, 10) // 0x8b7ac980
-    const errorFailedOp = Ethers5.utils.id("FailedOp(uint256,string)").substring(0, 10) // 0x220266b6
-
-    let output
-    switch (method.toString()) {
-        case errorExecutionResult:
-            output = Ethers5.utils.defaultAbiCoder.decode(
-                ["uint256", "uint256", "uint48", "uint48", "bool", "bytes"],
-                parms,
-            )
-            break
-        case errorFailedOp:
-            output = Ethers5.utils.defaultAbiCoder.decode(["uint256", "string"], parms)
-            break
-        default:
-            // 如果前缀不匹配任何情况，则执行其他操作
-            output = parms
-            break
-    }
-
-    console.log(`// [Error] ${JSON.stringify(output)}`)
 }

@@ -7,33 +7,42 @@ const accounts = {
 }
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || ""
 const ALCHEMY_TOKEN = process.env.ALCHEMY_TOKEN || ""
+const MAINNET_URL = `https://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_TOKEN}`
+const GOERLI_URL = `https://eth-goerli.alchemyapi.io/v2/${ALCHEMY_TOKEN}`
+
+const hardhatForkNet = "mainnet"
+
+const hardhatForkId = hardhatForkNet === "mainnet" ? 1337 : 5337
+const hardhatForkUrl = hardhatForkNet === "mainnet" ? MAINNET_URL : GOERLI_URL
+const hardhatForkBlock = hardhatForkNet === "mainnet" ? 17444444 : 9111111
 
 const config: HardhatUserConfig = {
   solidity: "0.8.18",
   networks: {
     mainnet: {
-      url: `https://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_TOKEN}`,
+      url: MAINNET_URL,
       chainId: 1,
-      accounts,
+      accounts: accounts,
     },
     goerli: {
-      url: `https://eth-goerli.alchemyapi.io/v2/${ALCHEMY_TOKEN}`,
+      url: GOERLI_URL,
       chainId: 5,
-      accounts,
+      accounts: accounts,
     },
     // Running Hardhat node with the following settings.
     hardhat: {
-      chainId: 1337,
-      accounts,
+      chainId: hardhatForkId,
+      accounts: accounts,
       forking: {
-        url: `https://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_TOKEN}`,
-        blockNumber: 17444444,
+        url: hardhatForkUrl,
+        blockNumber: hardhatForkBlock,
       },
+      
     },
     localhost: {
       url: `http://127.0.0.1:8545`,
       chainId: 1337,
-      accounts,
+      accounts: accounts,
     },
   },
   etherscan: {

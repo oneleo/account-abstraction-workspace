@@ -14,13 +14,23 @@ import { abi as abiAccount, bytecode as bytecodeAccount } from "@account-abstrac
 import { abi as abiUniswapSwapRouter, bytecode as bytecodeSwapRouter } from "@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json"
 const debug = false
 
-const WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
-const USDT_ADDRESS = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+const CHAIN_ID = hre.network.config.chainId
 
-const UNISWAP_SWAP_ROUTER_ADDRESS = "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+const WETH_ADDRESS = CHAIN_ID === 1337 ? "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2" : ""
+
+const USDT_ADDRESS = CHAIN_ID === 1337 ? "0xdAC17F958D2ee523a2206206994597C13D831ec7" : "0xC2C527C0CACF457746Bd31B2a698Fe89de2b6d49"
+
+const USDC_ADDRESS = CHAIN_ID === 1337 ? "" : "0x07865c6E87B9F70255377e024ace6630C1Eaa37F"
+
+// https://docs.uniswap.org/contracts/v3/reference/deployments
+const UNISWAP_SWAP_ROUTER_ADDRESS = CHAIN_ID === 1337 ? "0xE592427A0AEce92De3Edee1F18E0157C05861564" : "0xE592427A0AEce92De3Edee1F18E0157C05861564"
 const UNISWAP_POOL_FEE = 3000 // 0.3% expressed in hundredths of a bip
 
-const USDT_ETH_CHAINLINK = "0xEe9F2375b4bdF6387aa8265dD4FB8F16512A1d46"
+// https://docs.chain.link/data-feeds/price-feeds/addresses
+const ETH_USD_GOERLI_CHAINLINK = "0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e"
+const USDT_ETH_CHAINLINK = CHAIN_ID === 1337 ? "0xEe9F2375b4bdF6387aa8265dD4FB8F16512A1d46" : ETH_USD_GOERLI_CHAINLINK
+const USDC_ETH_CHAINLINK = CHAIN_ID === 1337 ? "0x986b5E1e1755e3C2440e960477f25201B0a8bbD4" : ETH_USD_GOERLI_CHAINLINK
+
 const SALT = BigNumber.from(333666999)
 const DATA = String('0x')
 // Get the Hatdhat network name.
