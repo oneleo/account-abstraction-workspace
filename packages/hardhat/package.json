@@ -9,7 +9,8 @@
     "node": "hardhat node",
     "deploy:aa": "wait-on tcp:8545 && hardhat run scripts/deployAA.ts --network localhost",
     "start:aa": "npm-run-all -p node deploy:aa",
-    "check:usdt": "hardhat run scripts/checkUSDT.ts --network localhost"
+    "check:usdt": "hardhat run scripts/checkUSDT.ts --network localhost",
+    "check:usdc": "hardhat run scripts/checkUSDC.ts --network localhost"
   },
   "keywords": [],
   "author": "",

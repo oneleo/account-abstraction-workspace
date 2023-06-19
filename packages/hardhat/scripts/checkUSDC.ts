@@ -8,7 +8,7 @@ import {
 } from "@account-abstraction/contracts/artifacts/SimpleAccount.json";
 
 const debug = false;
-const hardhatForkNet: string = "mainnet";
+const hardhatForkNet: string = "goerli";
 
 const USDT_ADDRESS =
   hardhatForkNet === "mainnet"
@@ -27,18 +27,18 @@ const SIGNER7_ADDRESS = "0xf4fE3D5e739ade5f870CF421521A6fFDb18D1EE5";
 const ACCOUNT_ADDRESS = "0x40fDEaDE1360334b60218959fE077d94d85bAa3F";
 
 async function main() {
-  const contractUsdt = await hre.ethers.getContractAt(abiErc20, USDT_ADDRESS); // Read contract
+  const contractUsdt = await hre.ethers.getContractAt(abiErc20, USDC_ADDRESS); // Read contract
   console.log(
-    `↳ The Account's USDT amount: ${await contractUsdt.balanceOf(
+    `↳ The Account's USDC amount: ${await contractUsdt.balanceOf(
       ACCOUNT_ADDRESS
     )}.\n`,
-    `↳ The User's USDT amount: ${await contractUsdt.balanceOf(
+    `↳ The User's USDC amount: ${await contractUsdt.balanceOf(
       USER_ADDRESS
     )}.\n`,
-    `↳ The Signer6's USDT amount: ${await contractUsdt.balanceOf(
+    `↳ The Signer6's USDC amount: ${await contractUsdt.balanceOf(
       SIGNER6_ADDRESS
     )}.\n`,
-    `↳ The Signer7's USDT amount: ${await contractUsdt.balanceOf(
+    `↳ The Signer7's USDC amount: ${await contractUsdt.balanceOf(
       SIGNER7_ADDRESS
     )}.\n`
   );
@@ -66,7 +66,7 @@ async function main() {
       BigNumber.from(tokenAmount),
     ]);
     await contractAccountWrite.connect(user).execute(
-      utils.getAddress(USDT_ADDRESS), // dest
+      utils.getAddress(USDC_ADDRESS), // dest
       BigNumber.from(0), // value
       encodeTransfer // func
     );

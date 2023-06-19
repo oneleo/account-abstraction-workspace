@@ -2,7 +2,7 @@ import * as React from "react"
 import * as Ethers5 from "ethers"
 import * as UserOp from "userop"
 
-import * as Addresses from "./addressea"
+// import * as Addresses from "./addressea"
 import * as Utils from "./utils"
 
 import * as TypesFactoryEntryPoint from "@/../typechain-types/@account-abstraction/contracts/factories/EntryPoint__factory"
@@ -21,11 +21,26 @@ import jsonErc20 from "@openzeppelin/contracts/build/contracts/ERC20.json"
 import "./aa.scss"
 
 const debug = false
+const hardhatForkNet: string = "goerli"
 
 const AA_DEFAULT_NONCE_KEY = 18
-// const AA_DEFAULT_DEPLOY_SALT = Ethers5.BigNumber.from(999666333)
-// const AA_DEFAULT_DEPLOY_SALT = Ethers5.BigNumber.from(333666999)
-const USDT_ADDRESS = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+
+const ENTRY_POINT_ADDRESS = "0x3Fe10E5Bf9809abBD60953032C4996DD7bf07D5c"
+const ACCOUNT_FACTORY_PROXY_ADDRESS = "0xE0Cc10b05bD1d78950A9D065f080E2Aa308839a6"
+
+const USER_ADDRESS = "0x5704Cf1BaeAb8e893d8FF493E0d8CF711E4BDE99"
+const SIGNER6_ADDRESS = "0x81578FBe3Ca2941e50404Ec4E713625169C33e53"
+const SIGNER7_ADDRESS = "0xf4fE3D5e739ade5f870CF421521A6fFDb18D1EE5"
+
+const USDT_ADDRESS =
+    hardhatForkNet === "mainnet"
+        ? "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+        : "0xC2C527C0CACF457746Bd31B2a698Fe89de2b6d49"
+
+const USDC_ADDRESS =
+    hardhatForkNet === "mainnet"
+        ? "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+        : "0x07865c6E87B9F70255377e024ace6630C1Eaa37F"
 
 const defaultUserOp: UserOp.IUserOperation = {
     sender: Ethers5.constants.AddressZero,
@@ -49,7 +64,7 @@ export const UserOperation = () => {
     const [isUserOpVisible, setIsUserOpVisible] = React.useState(false)
 
     const [tokenSymbol, setTokenSymbol] = React.useState<string>("ETH")
-    const [toAddress, setToAddress] = React.useState<string>(Addresses.signer6)
+    const [toAddress, setToAddress] = React.useState<string>(SIGNER6_ADDRESS)
     const [tokenAmount, setTokenAmount] = React.useState<Ethers5.BigNumberish>(
         Ethers5.BigNumber.from("1000000000000000000"),
     )
@@ -58,7 +73,7 @@ export const UserOperation = () => {
     const [metamaskBalanceEth, setMetamaskBalanceEth] = React.useState<Ethers5.BigNumberish>(
         Ethers5.BigNumber.from(0),
     )
-    const [metamaskBalanceUsdt, setMetamaskBalanceUsdt] = React.useState<Ethers5.BigNumberish>(
+    const [metamaskBalanceUsdc, setMetamaskBalanceUsdc] = React.useState<Ethers5.BigNumberish>(
         Ethers5.BigNumber.from(0),
     )
 
@@ -72,7 +87,7 @@ export const UserOperation = () => {
     )
     const [aABalanceEthInEntryPoint, setAABalanceEthInEntryPoint] =
         React.useState<Ethers5.BigNumberish>(Ethers5.BigNumber.from(0))
-    const [aABalanceUsdt, setAABalanceUsdt] = React.useState<Ethers5.BigNumberish>(
+    const [aABalanceUsdc, setAABalanceUsdc] = React.useState<Ethers5.BigNumberish>(
         Ethers5.BigNumber.from(0),
     )
     const [aANonce, setAANonce] = React.useState<Ethers5.BigNumberish>(
@@ -120,18 +135,18 @@ export const UserOperation = () => {
         }
         const provider = new Ethers5.providers.Web3Provider(window.ethereum)
         // const signer = provider.getSigner()
-        const contractUsdt = TypesFactoryErc20.ERC20__factory.connect(USDT_ADDRESS, provider)
+        const contractUsdc = TypesFactoryErc20.ERC20__factory.connect(USDC_ADDRESS, provider)
         const contractAccountFactoryProxy =
             TypesFactoryAccountFactory.SimpleAccountFactory__factory.connect(
-                Addresses.AccountFactoryProxy,
+                ACCOUNT_FACTORY_PROXY_ADDRESS,
                 provider,
             )
         // 非同步函數
         const getBalanceAndAccountNonce = async () => {
-            // 取得 User 的 ETH 及 USDT 餘額
+            // 取得 User 的 ETH 及 USDC 餘額
             setMetamaskBalanceEth(await provider.getBalance(metamaskAddress))
 
-            setMetamaskBalanceUsdt(await contractUsdt.balanceOf(metamaskAddress))
+            setMetamaskBalanceUsdc(await contractUsdc.balanceOf(metamaskAddress))
 
             // 透過 User 取得 Account 地址
             const accountAddress = await contractAccountFactoryProxy.getAddress(
@@ -145,10 +160,10 @@ export const UserOperation = () => {
 
                 setAABalanceEth(await provider.getBalance(accountAddress))
 
-                setAABalanceUsdt(await contractUsdt.balanceOf(accountAddress))
+                setAABalanceUsdc(await contractUsdc.balanceOf(accountAddress))
 
                 const contractEntryPoint = TypesFactoryEntryPoint.EntryPoint__factory.connect(
-                    Addresses.EntryPoint,
+                    ENTRY_POINT_ADDRESS,
                     provider,
                 )
 
@@ -184,7 +199,6 @@ export const UserOperation = () => {
             console.log("please install MetaMask")
             return
         }
-
         // We can do it using ethers.js
         const provider = new Ethers5.providers.Web3Provider(window.ethereum)
         provider
@@ -200,11 +214,11 @@ export const UserOperation = () => {
         console.log("onClickDisConnect")
         setMetamaskAddress("")
         setMetamaskBalanceEth(Ethers5.BigNumber.from(0))
-        setMetamaskBalanceUsdt(Ethers5.BigNumber.from(0))
+        setMetamaskBalanceUsdc(Ethers5.BigNumber.from(0))
         setAAAccountAddress("")
         setAABalanceEth(Ethers5.BigNumber.from(0))
         setAABalanceEthInEntryPoint(Ethers5.BigNumber.from(0))
-        setAABalanceUsdt(Ethers5.BigNumber.from(0))
+        setAABalanceUsdc(Ethers5.BigNumber.from(0))
         setAANonce(Ethers5.BigNumber.from(0))
     }
 
@@ -227,7 +241,7 @@ export const UserOperation = () => {
         }
         const contractAccountFactoryProxy =
             TypesFactoryAccountFactory.SimpleAccountFactory__factory.connect(
-                Addresses.AccountFactoryProxy,
+                ACCOUNT_FACTORY_PROXY_ADDRESS,
                 signer,
             )
         let writeTransaction: Ethers5.ContractTransaction
@@ -240,7 +254,7 @@ export const UserOperation = () => {
         )
     }, [metamaskAddress, aADeploySalt])
 
-    // 轉 10 ETH、10 USDT 給 Account，為 Account 在 EntryPoint 存入 10 ETH
+    // 轉 10 ETH、10 USDC 給 Account，為 Account 在 EntryPoint 存入 10 ETH
     const handleDepositAccount = async () => {
         if (!window.ethereum) {
             return
@@ -270,9 +284,9 @@ export const UserOperation = () => {
             ...value10Overrides,
         })
 
-        // 轉 10 USDT 至 Account
-        const contractUsdt = TypesFactoryErc20.ERC20__factory.connect(USDT_ADDRESS, signer)
-        contractUsdt.transfer(aAAccountAddress, Ethers5.BigNumber.from(10000000))
+        // 轉 10 USDC 至 Account
+        const contractUsdc = TypesFactoryErc20.ERC20__factory.connect(USDC_ADDRESS, signer)
+        contractUsdc.transfer(aAAccountAddress, Ethers5.BigNumber.from(10000000))
 
         // 轉 10 ETH 從 Account 至 EntryPoint
         const contractAccount = TypesFactoryAccount.SimpleAccount__factory.connect(
@@ -315,7 +329,7 @@ export const UserOperation = () => {
         const provider = new Ethers5.providers.Web3Provider(window.ethereum)
 
         const contractEntryPoint = new Ethers5.Contract(
-            Addresses.EntryPoint,
+            ENTRY_POINT_ADDRESS,
             jsonEntryPoint.abi,
             provider,
         ) // Writable contract instance
@@ -358,7 +372,7 @@ export const UserOperation = () => {
             },
         )
 
-        const contractErc20 = new Ethers5.Contract(USDT_ADDRESS, jsonErc20.abi, provider) // Writable contract instance
+        const contractErc20 = new Ethers5.Contract(USDC_ADDRESS, jsonErc20.abi, provider) // Writable contract instance
 
         contractErc20.on("Transfer", (from, to, value, event) => {
             const transferEvent = {
@@ -387,7 +401,7 @@ export const UserOperation = () => {
         const signer = provider.getSigner()
 
         const contractEntryPoint = TypesFactoryEntryPoint.EntryPoint__factory.connect(
-            Addresses.EntryPoint,
+            ENTRY_POINT_ADDRESS,
             provider,
         )
 
@@ -404,7 +418,7 @@ export const UserOperation = () => {
             }
         }
 
-        if (tokenSymbol === "USDT") {
+        if (tokenSymbol === "USDC") {
             const ifaceErc20 = new Ethers5.utils.Interface(jsonErc20.abi)
 
             const encodeTransfer = ifaceErc20.encodeFunctionData("transfer", [
@@ -412,7 +426,7 @@ export const UserOperation = () => {
                 Ethers5.BigNumber.from(tokenAmount),
             ])
             executeArgs = [
-                Ethers5.utils.getAddress(USDT_ADDRESS), // dest
+                Ethers5.utils.getAddress(USDC_ADDRESS), // dest
                 Ethers5.BigNumber.from(0), // value
                 encodeTransfer, // func
             ]
@@ -439,7 +453,7 @@ export const UserOperation = () => {
             })
             .useMiddleware(UserOp.Presets.Middleware.EOASignature(signer))
         const userOpWithSig = await builder.buildOp(
-            Addresses.EntryPoint,
+            ENTRY_POINT_ADDRESS,
             await provider.getSigner().getChainId(),
         )
 
@@ -469,7 +483,7 @@ export const UserOperation = () => {
         }
 
         const contractEntryPoint = TypesFactoryEntryPoint.EntryPoint__factory.connect(
-            Addresses.EntryPoint,
+            ENTRY_POINT_ADDRESS,
             signer,
         )
 
@@ -511,7 +525,7 @@ export const UserOperation = () => {
         const { id, value } = event.target
         switch (id) {
             case "aADeploySalt":
-                setAADeploySalt(event.target.value)
+                setAADeploySalt(Ethers5.BigNumber.from(value))
                 break
             default:
                 setAADeploySalt(Ethers5.BigNumber.from(0))
@@ -531,7 +545,7 @@ export const UserOperation = () => {
                         if (value.toString() === "ETH") {
                             setTokenAmount(Ethers5.BigNumber.from("1000000000000000000"))
                         }
-                        if (value.toString() === "USDT") {
+                        if (value.toString() === "USDC") {
                             setTokenAmount(Ethers5.BigNumber.from(1000000))
                         }
                         setError("")
@@ -709,7 +723,7 @@ export const UserOperation = () => {
 
                         <p>ETH Balance of Metamask address: {metamaskBalanceEth.toString()}</p>
 
-                        <p>USDT Balance of Metamask address: {metamaskBalanceUsdt.toString()}</p>
+                        <p>USDC Balance of Metamask address: {metamaskBalanceUsdc.toString()}</p>
                     </section>
                 </div>
             </>
@@ -748,13 +762,13 @@ export const UserOperation = () => {
                     <section>
                         <p>Address of AA Account: {aAAccountAddress.toString()}</p>
                         <p>
-                            Nonce of AA Account（Seq = 0 ~ 2 時可免費轉帳）：
+                            Nonce of AA Account(Seq = 0 ~ 2 時可免費轉帳):
                             {`Key=${Utils.decodeAANonce(
                                 aANonce,
                             ).key.toString()}、Seq=${Utils.decodeAANonce(aANonce).seq.toString()}`}
                         </p>
                         <p>ETH Balance of AA Account: {aABalanceEth.toString()}</p>
-                        <p>USDT Balance of AA Account: {aABalanceUsdt.toString()}</p>
+                        <p>USDC Balance of AA Account: {aABalanceUsdc.toString()}</p>
                         <p>
                             ETH Balance deposit to EntryPoint from AA Account:{" "}
                             {aABalanceEthInEntryPoint.toString()}
@@ -768,38 +782,40 @@ export const UserOperation = () => {
     const formTransferToken = () => {
         return (
             <>
-                <div>
-                    <label>Token:</label>
-                    <select
-                        id="tokenSymbol"
-                        value={`${tokenSymbol}`}
-                        onChange={handleUserOpFormChange}
-                    >
-                        <option value="ETH">ETH</option>
-                        <option value="USDT">USDT</option>
-                    </select>
+                <div className="transfer-token-form">
+                    <div>
+                        <label>Token:</label>
+                        <select
+                            id="tokenSymbol"
+                            value={`${tokenSymbol}`}
+                            onChange={handleUserOpFormChange}
+                        >
+                            <option value="ETH">ETH</option>
+                            <option value="USDC">USDC</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>To:</label>
+                        <input
+                            type="text"
+                            id="toAddress"
+                            value={`${toAddress}`}
+                            onChange={handleUserOpFormChange}
+                        />
+                    </div>
+                    <div>
+                        <label>Amount:</label>
+                        <input
+                            type="text"
+                            id="tokenAmount"
+                            value={`${tokenAmount}`}
+                            onChange={handleUserOpFormChange}
+                        />
+                    </div>
+                    <button onClick={() => handleSigATransfer()}>
+                        Sign an ETH/USDC transform transaction
+                    </button>
                 </div>
-                <div>
-                    <label>To：</label>
-                    <input
-                        type="text"
-                        id="toAddress"
-                        value={`${toAddress}`}
-                        onChange={handleUserOpFormChange}
-                    />
-                </div>
-                <div>
-                    <label>Amount:</label>
-                    <input
-                        type="text"
-                        id="tokenAmount"
-                        value={`${tokenAmount}`}
-                        onChange={handleUserOpFormChange}
-                    />
-                </div>
-                <button onClick={() => handleSigATransfer()}>
-                    Sign an ETH/USDT transform transaction
-                </button>
             </>
         )
     }
@@ -813,131 +829,127 @@ export const UserOperation = () => {
                     <button onClick={() => handleShowHideUserOp()}>Show/Hide UserOp</button>
                     <form onSubmit={handleSubmit}>
                         {isUserOpVisible && (
-                            <div>
-                                <label>Sender:</label>
-                                <input
-                                    type="text"
-                                    id="sender"
-                                    value={`${userOp.sender}`}
-                                    onChange={handleUserOpFormChange}
-                                    disabled={true}
-                                />
-                            </div>
+                            <>
+                                <div>
+                                    <label>Sender:</label>
+                                    <input
+                                        type="text"
+                                        id="sender"
+                                        value={`${userOp.sender}`}
+                                        onChange={handleUserOpFormChange}
+                                        disabled={true}
+                                    />
+                                </div>
+                                <div>
+                                    <label>Nonce:</label>
+                                    <input
+                                        type="text"
+                                        id="nonce"
+                                        value={`${userOp.nonce}`}
+                                        onChange={handleUserOpFormChange}
+                                        disabled={true}
+                                    />
+                                    <p>{`→ Key=${
+                                        Utils.decodeAANonce(Ethers5.BigNumber.from(userOp.nonce))
+                                            .key
+                                    }、Seq=${
+                                        Utils.decodeAANonce(Ethers5.BigNumber.from(userOp.nonce))
+                                            .seq
+                                    }`}</p>
+                                </div>
+                                <div>
+                                    <label>Init Code:</label>
+                                    <input
+                                        type="text"
+                                        id="initCode"
+                                        value={`${userOp.initCode}`}
+                                        onChange={handleUserOpFormChange}
+                                    />
+                                </div>
+                                <div>
+                                    <label>Call Data:</label>
+                                    <input
+                                        type="text"
+                                        id="callData"
+                                        value={`${userOp.callData}`}
+                                        onChange={handleUserOpFormChange}
+                                        disabled={true}
+                                    />
+                                </div>
+                                <div>
+                                    <label>Call Gas Limit:</label>
+                                    <input
+                                        type="text"
+                                        id="callGasLimit"
+                                        value={`${userOp.callGasLimit}`}
+                                        onChange={handleUserOpFormChange}
+                                    />
+                                </div>
+                                <div>
+                                    <label>Verification Gas Limit:</label>
+                                    <input
+                                        type="text"
+                                        id="verificationGasLimit"
+                                        value={`${userOp.verificationGasLimit}`}
+                                        onChange={handleUserOpFormChange}
+                                    />
+                                </div>
+                                <div>
+                                    <label>Pre-Verification Gas:</label>
+                                    <input
+                                        type="text"
+                                        id="preVerificationGas"
+                                        value={`${userOp.preVerificationGas}`}
+                                        onChange={handleUserOpFormChange}
+                                    />
+                                </div>
+                                <div>
+                                    <label>Max Fee Per Gas:</label>
+                                    <input
+                                        type="text"
+                                        id="maxFeePerGas"
+                                        value={`${userOp.maxFeePerGas}`}
+                                        onChange={handleUserOpFormChange}
+                                    />
+                                </div>
+                                <div>
+                                    <label>Max Priority Fee Per Gas:</label>
+                                    <input
+                                        type="text"
+                                        id="maxPriorityFeePerGas"
+                                        value={`${userOp.maxPriorityFeePerGas}`}
+                                        onChange={handleUserOpFormChange}
+                                    />
+                                </div>
+                                <div>
+                                    <label>Paymaster and Data:</label>
+                                    <input
+                                        type="text"
+                                        id="paymasterAndData"
+                                        value={`${userOp.paymasterAndData}`}
+                                        onChange={handleUserOpFormChange}
+                                    />
+                                </div>
+                                <div>
+                                    <label>Signature:</label>
+                                    <input
+                                        type="text"
+                                        id="signature"
+                                        value={`${userOp.signature}`}
+                                        onChange={handleUserOpFormChange}
+                                        disabled={true}
+                                    />
+                                </div>
+                            </>
                         )}
-                        <div>
-                            <label>Nonce:</label>
-                            <input
-                                type="text"
-                                id="nonce"
-                                value={`${userOp.nonce}`}
-                                onChange={handleUserOpFormChange}
-                                disabled={true}
-                            />
-                            <p>{`→ Key=${
-                                Utils.decodeAANonce(Ethers5.BigNumber.from(userOp.nonce)).key
-                            }、Seq=${
-                                Utils.decodeAANonce(Ethers5.BigNumber.from(userOp.nonce)).seq
-                            }`}</p>
-                        </div>
-                        <div>
-                            <label>Init Code:</label>
-                            <input
-                                type="text"
-                                id="initCode"
-                                value={`${userOp.initCode}`}
-                                onChange={handleUserOpFormChange}
-                            />
-                        </div>
-                        <div>
-                            <label>Call Data（無法更動） ：</label>
-                            <input
-                                type="text"
-                                id="callData"
-                                value={`${userOp.callData}`}
-                                onChange={handleUserOpFormChange}
-                                disabled={true}
-                            />
-                        </div>
-                        <div>
-                            <label>Call Gas Limit:</label>
-                            <input
-                                type="text"
-                                id="callGasLimit"
-                                value={`${userOp.callGasLimit}`}
-                                onChange={handleUserOpFormChange}
-                            />
-                        </div>
-                        <div>
-                            <label>Verification Gas Limit:</label>
-                            <input
-                                type="text"
-                                id="verificationGasLimit"
-                                value={`${userOp.verificationGasLimit}`}
-                                onChange={handleUserOpFormChange}
-                            />
-                        </div>
-                        <div>
-                            <label>Pre-Verification Gas:</label>
-                            <input
-                                type="text"
-                                id="preVerificationGas"
-                                value={`${userOp.preVerificationGas}`}
-                                onChange={handleUserOpFormChange}
-                            />
-                        </div>
-                        <div>
-                            <label>Max Fee Per Gas:</label>
-                            <input
-                                type="text"
-                                id="maxFeePerGas"
-                                value={`${userOp.maxFeePerGas}`}
-                                onChange={handleUserOpFormChange}
-                            />
-                        </div>
-                        <div>
-                            <label>Max Priority Fee Per Gas:</label>
-                            <input
-                                type="text"
-                                id="maxPriorityFeePerGas"
-                                value={`${userOp.maxPriorityFeePerGas}`}
-                                onChange={handleUserOpFormChange}
-                            />
-                        </div>
-                        <div>
-                            <label>Paymaster and Data:</label>
-                            <input
-                                type="text"
-                                id="paymasterAndData"
-                                value={`${userOp.paymasterAndData}`}
-                                onChange={handleUserOpFormChange}
-                            />
-                        </div>
-                        <div>
-                            <label>Signature（無法更動） ：</label>
-                            <input
-                                type="text"
-                                id="signature"
-                                value={`${userOp.signature}`}
-                                onChange={handleUserOpFormChange}
-                                disabled={true}
-                            />
-                        </div>
                         <div>
                             <input disabled={!!error} type="submit" value="Submit" />
                         </div>
                     </form>
                     <div>{error && <text className="Error">{`error: ${error}`}</text>}</div>
-                    {/* </div> */}
-                    <div>
-                        <button onClick={() => handleResetUserOp()}>Reset the UserOp</button>
-                    </div>
                     {/* <div>
-                        <div>----------</div>
-                        <div>
-                            <input disabled={!!error} type="submit" value="Submit" />
-                        </div>
+                        <button onClick={() => handleResetUserOp()}>Reset the UserOp</button>
                     </div> */}
-                    {/* </form> */}
                 </div>
             </>
         )

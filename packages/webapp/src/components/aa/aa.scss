@@ -56,6 +56,7 @@
     padding-right: 0;
     input {
         width: 300px;
+        height: 20px;
     }
 }
 
@@ -63,6 +64,28 @@
     display: flex;
     flex-direction: row;
     gap: 0px;
+}
+
+.transfer-token-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-left: 0;
+    padding-right: 0;
+    input {
+        width: 450px;
+        height: 30px;
+    }
+    select {
+        width: 150px;
+        height: 30px;
+    }
+    button {
+        margin: 8px; // 調整您想要的間距寬度
+        font-size: 14px;
+        width: 160px; // 調整按鈕寬度
+        height: 60px; // 調整按鈕高度
+    }
 }
 
 .Error {
