@@ -1,0 +1,4 @@
+[submodule "packages/imtoken-webapp/lib/account-abstraction"]
+	path = packages/imtoken-webapp/lib/account-abstraction
+	url = git@github.com:consenlabs/account-abstraction.git
+	branch = main

@@ -3,6 +3,7 @@
 ## 1. Initialize
 
 ```shell
+% git submodule sync --recursive && git submodule update --init --recursive
 % pnpm install
 ```
 
@@ -77,3 +78,24 @@ It will start up at [http://localhost:3000/account-abstraction](http://localhost
 | New RPC URL            | http://127.0.0.1:8545                 |
 | Chain ID               | 1337                                  |
 | Currency symbol        | ETH                                   |
+
+## 5. imToken Webapp
+
+```shell
+% PKG5="account-abstraction-sdk" && pnpm --filter ${PKG5} test
+% PKG4="account-abstraction" && pnpm --filter ${PKG4} typechain
+
+% PKG3="imtoken-webapp" && pnpm --filter ${PKG3} typechain
+% PKG3="imtoken-webapp" && pnpm --filter ${PKG3} dev
+```
+
+## 6. Other tests
+
+```shell
+% cp packages/imtoken-webapp/lib/account-abstraction/.env.example packages/imtoken-webapp/lib/account-abstraction/.env
+% code packages/imtoken-webapp/lib/account-abstraction/.env
++++
+GOERLI_NODE_RPC_URL=="Created_by_https://www.alchemy.com/"
++++
+% PKG4="account-abstraction" && pnpm --filter ${PKG4} test:goerli
+```

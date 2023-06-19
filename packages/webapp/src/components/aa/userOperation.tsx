@@ -25,12 +25,15 @@ const hardhatForkNet: string = "goerli"
 
 const AA_DEFAULT_NONCE_KEY = 18
 
-const ENTRY_POINT_ADDRESS = "0x3Fe10E5Bf9809abBD60953032C4996DD7bf07D5c"
-const ACCOUNT_FACTORY_PROXY_ADDRESS = "0xE0Cc10b05bD1d78950A9D065f080E2Aa308839a6"
+// My AA Contracts on Hardhat Node
+// const ENTRY_POINT_ADDRESS = "0x3Fe10E5Bf9809abBD60953032C4996DD7bf07D5c"
+// const ACCOUNT_FACTORY_PROXY_ADDRESS = "0xE0Cc10b05bD1d78950A9D065f080E2Aa308839a6"
 
-const USER_ADDRESS = "0x5704Cf1BaeAb8e893d8FF493E0d8CF711E4BDE99"
+// imToken AA Contracts on Goerli Testnet
+const ENTRY_POINT_ADDRESS = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"
+const ACCOUNT_FACTORY_PROXY_ADDRESS = "0xF3A26E979977053fb8D3bd6cCcd74A8f71BDddD1"
+
 const SIGNER6_ADDRESS = "0x81578FBe3Ca2941e50404Ec4E713625169C33e53"
-const SIGNER7_ADDRESS = "0xf4fE3D5e739ade5f870CF421521A6fFDb18D1EE5"
 
 const USDT_ADDRESS =
     hardhatForkNet === "mainnet"
@@ -491,9 +494,8 @@ export const UserOperation = () => {
             console.log(`// [debug] Signer Address: ${addrSigner}`)
             console.log(`// [debug] Chain Id: ${await signer.getChainId()}`)
             console.log(`// [debug] EntryPoint Address: ${contractEntryPoint.address}`)
-
-            Utils.logUserOp(userOp)
         }
+        Utils.logUserOp(userOp)
 
         let writeTransaction: Ethers5.ContractTransaction
 

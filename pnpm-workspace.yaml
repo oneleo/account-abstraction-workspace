@@ -1,2 +1,4 @@
 packages:
   - "packages/*"
+  - "packages/imtoken-webapp/lib/*"
+  - "packages/imtoken-webapp/lib/account-abstraction/sdk"
