@@ -4,6 +4,7 @@ import * as UserOp from "userop";
 
 import {
   ImAccount,
+  IBuilderOpts,
   IMiddlewareGenerator,
   GasLimitMiddlewareGenerator,
   OnboardingPaymasterGenerator,
@@ -87,10 +88,10 @@ export const UserOperation = () => {
     React.useState<UserOp.IUserOperation>(defaultUserOp);
   const [isUserOpVisible, setIsUserOpVisible] = React.useState(false);
 
-  const [tokenSymbol, setTokenSymbol] = React.useState<string>("ETH");
+  const [tokenSymbol, setTokenSymbol] = React.useState<string>("USDC");
   const [toAddress, setToAddress] = React.useState<string>(SIGNER6_ADDRESS);
   const [tokenAmount, setTokenAmount] = React.useState<Ethers5.BigNumberish>(
-    Ethers5.BigNumber.from("1000000000000000000")
+    Ethers5.BigNumber.from("1000000")
   );
   // Metamask State
   const [metamaskAddress, setMetamaskAddress] = React.useState<string>("");
@@ -101,7 +102,7 @@ export const UserOperation = () => {
 
   // AA Account State
   const [aADeploySalt, setAADeploySalt] = React.useState<Ethers5.BigNumberish>(
-    Ethers5.BigNumber.from(999666333)
+    Ethers5.BigNumber.from(0)
   );
   const [aAAccountAddress, setAAAccountAddress] = React.useState<string>("");
   const [aABalanceEth, setAABalanceEth] = React.useState<Ethers5.BigNumberish>(
@@ -155,7 +156,7 @@ export const UserOperation = () => {
       return;
     }
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
-    // const signer = provider.getSigner()
+    const signer = provider.getSigner();
     const contractUsdc = TypesFactoryErc20.ERC20__factory.connect(
       USDC_ADDRESS,
       provider
@@ -178,7 +179,28 @@ export const UserOperation = () => {
         aADeploySalt
       );
 
+      // const imAccountOpts: IBuilderOpts = {
+      //   entryPoint: ENTRY_POINT_ADDRESS,
+      //   factory: ACCOUNT_FACTORY_PROXY_ADDRESS,
+      // };
+
+      // const imAccount = await ImAccount.init(
+      //   signer,
+      //   BUNDLER_RPC_URL,
+      //   imAccountOpts
+      // );
+
+      // const accountAddress = imAccount.getSender();
+
       // 偵測是否已部署 Account 合約
+      if ((await provider.getCode(accountAddress)) === "0x") {
+        setAAAccountAddress("");
+        setAABalanceEth(Ethers5.BigNumber.from(0));
+        setAABalanceUsdc(Ethers5.BigNumber.from(0));
+        setAANonce(Utils.encodeAANonce(AA_DEFAULT_NONCE_KEY, 0));
+        setAABalanceEthInEntryPoint(Ethers5.BigNumber.from(0));
+      }
+      // 已偵測有部署 Account 合約
       if ((await provider.getCode(accountAddress)) !== "0x") {
         setAAAccountAddress(accountAddress);
 
@@ -260,29 +282,52 @@ export const UserOperation = () => {
 
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
     const signer = provider.getSigner();
-    // Declare the gas overrides argument.
-    const gasOverrides: Ethers5.Overrides = {
-      gasLimit: Ethers5.BigNumber.from(5000000),
-      gasPrice:
-        (await provider.getFeeData()).gasPrice || Ethers5.BigNumber.from(0),
-      nonce: Ethers5.BigNumber.from(9),
-      // maxFeePerGas: (await provider.getFeeData()).maxFeePerGas || Ethers5.BigNumber.from(0),
-      // maxPriorityFeePerGas:
-      //     (await provider.getFeeData()).maxPriorityFeePerGas || Ethers5.BigNumber.from(0),
-    };
-    const contractAccountFactoryProxy =
-      TypesFactoryAccountFactory.SimpleAccountFactory__factory.connect(
-        ACCOUNT_FACTORY_PROXY_ADDRESS,
-        signer
-      );
-    let writeTransaction: Ethers5.ContractTransaction;
+    // // Declare the gas overrides argument.
+    // const gasOverrides: Ethers5.Overrides = {
+    //   gasLimit: Ethers5.BigNumber.from(5000000),
+    //   gasPrice:
+    //     (await provider.getFeeData()).gasPrice || Ethers5.BigNumber.from(0),
+    //   nonce: Ethers5.BigNumber.from(9),
+    // };
+    // const contractAccountFactoryProxy =
+    //   TypesFactoryAccountFactory.SimpleAccountFactory__factory.connect(
+    //     ACCOUNT_FACTORY_PROXY_ADDRESS,
+    //     signer
+    //   );
+    // let writeTransaction: Ethers5.ContractTransaction;
 
-    // 部署新的 Account
-    writeTransaction = await contractAccountFactoryProxy.createAccount(
-      metamaskAddress,
-      aADeploySalt,
-      gasOverrides
+    // // 部署新的 Account
+    // writeTransaction = await contractAccountFactoryProxy.createAccount(
+    //   metamaskAddress,
+    //   aADeploySalt,
+    //   gasOverrides
+    // );
+
+    const activityId = 0;
+    const onboardingPaymasterGenerator = new OnboardingPaymasterGenerator(
+      ONBOARDING_PAYMASTER_ADDRESS,
+      activityId
     );
+
+    const client = await UserOp.Client.init(BUNDLER_RPC_URL);
+
+    const imAccountOpts: IBuilderOpts = {
+      entryPoint: ENTRY_POINT_ADDRESS,
+      factory: ACCOUNT_FACTORY_PROXY_ADDRESS,
+      paymasterMiddlewareGenerator: onboardingPaymasterGenerator,
+    };
+
+    const imAccount = await ImAccount.init(
+      signer,
+      BUNDLER_RPC_URL,
+      imAccountOpts
+    );
+
+    const res = await client.sendUserOperation(imAccount, {
+      onBuild: (op) => console.log("Signed UserOperation:", op),
+    });
+
+    const ev = await res.wait();
   }, [metamaskAddress, aADeploySalt]);
 
   // 轉 10 ETH、10 USDC 給 Account，為 Account 在 EntryPoint 存入 10 ETH
@@ -360,29 +405,38 @@ export const UserOperation = () => {
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
     const signer = provider.getSigner();
 
-    const contractEntryPoint =
-      TypesFactoryEntryPoint.EntryPoint__factory.connect(
-        ENTRY_POINT_ADDRESS,
-        provider
-      );
+    // const contractEntryPoint =
+    //   TypesFactoryEntryPoint.EntryPoint__factory.connect(
+    //     ENTRY_POINT_ADDRESS,
+    //     provider
+    //   );
 
-    const contractImAccountFactory = ImAccountFactory__factory.connect(
-      ACCOUNT_FACTORY_PROXY_ADDRESS,
-      provider
-    );
+    // const contractImAccountFactory = ImAccountFactory__factory.connect(
+    //   ACCOUNT_FACTORY_PROXY_ADDRESS,
+    //   provider
+    // );
 
-    const contractOnboardingPaymaster = OnboardingPaymaster__factory.connect(
-      ONBOARDING_PAYMASTER_ADDRESS,
-      provider
-    );
+    // const contractOnboardingPaymaster = OnboardingPaymaster__factory.connect(
+    //   ONBOARDING_PAYMASTER_ADDRESS,
+    //   provider
+    // );
 
-    let executeArgs: any[] = [];
+    let executeArgs: {
+      dest: string;
+      value: Ethers5.BigNumber;
+      func: Uint8Array;
+    } = {
+      dest: Ethers5.utils.getAddress(Ethers5.constants.AddressZero), // dest
+      value: Ethers5.utils.parseEther("0"), // value
+      func: Ethers5.utils.arrayify("0x"), // func
+    };
+
     if (tokenSymbol === "ETH") {
-      executeArgs = [
-        Ethers5.utils.getAddress(toAddress), // dest
-        Ethers5.utils.parseEther("1"), // value
-        Ethers5.utils.arrayify("0x"), // func
-      ];
+      executeArgs = {
+        dest: Ethers5.utils.getAddress(toAddress), // dest
+        value: Ethers5.utils.parseEther("1"), // value
+        func: Ethers5.utils.arrayify("0x"), // func
+      };
       if (debug) {
         console.log(`tokenSymbol: ${tokenSymbol}`);
         console.log(`executeArgs: ${executeArgs}`);
@@ -396,11 +450,11 @@ export const UserOperation = () => {
         Ethers5.utils.getAddress(toAddress),
         Ethers5.BigNumber.from(tokenAmount),
       ]);
-      executeArgs = [
-        Ethers5.utils.getAddress(USDC_ADDRESS), // dest
-        Ethers5.BigNumber.from(0), // value
-        encodeTransfer, // func
-      ];
+      executeArgs = {
+        dest: Ethers5.utils.getAddress(USDC_ADDRESS), // dest
+        value: Ethers5.BigNumber.from(0), // value
+        func: Ethers5.utils.arrayify(encodeTransfer), // func
+      };
       if (debug) {
         console.log(`tokenSymbol: ${tokenSymbol}`);
         console.log(`encodeTransfer: ${encodeTransfer}`);
@@ -408,51 +462,69 @@ export const UserOperation = () => {
       }
     }
 
-    const ifaceAccount = new Ethers5.utils.Interface(jsonAccount.abi);
-    const callData = ifaceAccount.encodeFunctionData("execute", executeArgs);
+    // const ifaceAccount = new Ethers5.utils.Interface(jsonAccount.abi);
+    // const callData = ifaceAccount.encodeFunctionData("execute", [
+    //   executeArgs.dest,
+    //   executeArgs.value,
+    //   executeArgs.func,
+    // ]);
 
-    // Get userOp sig by Builder
-    const builder = new UserOp.UserOperationBuilder()
-      .setPartial({
-        ...userOp,
-        nonce: Utils.encodeAANonce(
-          AA_DEFAULT_NONCE_KEY,
-          await contractEntryPoint.getNonce(
-            aAAccountAddress,
-            AA_DEFAULT_NONCE_KEY
-          )
-        ),
-        sender: aAAccountAddress, // Set the sender, callData
-        callData: callData,
-      })
-      .useMiddleware(UserOp.Presets.Middleware.EOASignature(signer));
-    const userOpWithSig = await builder.buildOp(
-      ENTRY_POINT_ADDRESS,
-      await provider.getSigner().getChainId()
+    // // Get userOp sig by Builder
+    // const builder = new UserOp.UserOperationBuilder()
+    //   .setPartial({
+    //     ...userOp,
+    //     nonce: Utils.encodeAANonce(
+    //       AA_DEFAULT_NONCE_KEY,
+    //       await contractEntryPoint.getNonce(
+    //         aAAccountAddress,
+    //         AA_DEFAULT_NONCE_KEY
+    //       )
+    //     ),
+    //     sender: aAAccountAddress, // Set the sender, callData
+    //     callData: callData,
+    //   })
+    //   .useMiddleware(UserOp.Presets.Middleware.EOASignature(signer));
+    // const userOpWithSig = await builder.buildOp(
+    //   ENTRY_POINT_ADDRESS,
+    //   await provider.getSigner().getChainId()
+    // );
+
+    const activityId = 0;
+    const onboardingPaymasterGenerator = new OnboardingPaymasterGenerator(
+      ONBOARDING_PAYMASTER_ADDRESS,
+      activityId
     );
 
-    // const client = await UserOp.Client.init(
-    //   BUNDLER_RPC_URL,
-    //   contractEntryPoint.address
-    // );
+    const client = await UserOp.Client.init(BUNDLER_RPC_URL);
 
-    // const activityId = 0;
+    const imAccountOpts: IBuilderOpts = {
+      entryPoint: ENTRY_POINT_ADDRESS,
+      factory: ACCOUNT_FACTORY_PROXY_ADDRESS,
+      paymasterMiddlewareGenerator: onboardingPaymasterGenerator,
+    };
 
-    // const onboardingPaymasterGenerator = new OnboardingPaymasterGenerator(
-    //   contractOnboardingPaymaster.address,
-    //   activityId
-    // );
+    const imAccount = await ImAccount.init(
+      signer,
+      BUNDLER_RPC_URL,
+      imAccountOpts
+    );
 
-    // const imAccount = await ImAccount.init(signer, BUNDLER_RPC_URL, {
-    //   entryPoint: contractEntryPoint.address,
-    //   factory: contractImAccountFactory.address,
-    //   // `overrideBundlerRpc` is required if rpcUrl cannot provide apis of bundler
-    //   overrideBundlerRpc: BUNDLER_RPC_URL,
-    //   paymasterMiddlewareGenerator: onboardingPaymasterGenerator,
-    // });
+    const imBuilder: UserOp.IUserOperationBuilder = imAccount.executeBatch(
+      [executeArgs.dest],
+      [executeArgs.value],
+      [executeArgs.func]
+    );
 
-    // Update the value to userOpTemp
-    setUserOp(formatUserOp(userOpWithSig));
+    let res = await client.sendUserOperation(imBuilder, {
+      onBuild: (op) => {
+        // Update the value to userOpTemp
+        // setUserOp(formatUserOp(userOpWithSig));
+        setUserOp(formatUserOp(imBuilder.getOp()));
+        console.log("Signed UserOperation:", op);
+      },
+    });
+
+    let ev = await res.wait();
   }, [userOp, aAAccountAddress, tokenSymbol, toAddress, tokenAmount]);
 
   // Send transaction to EntryPoint.handleOps
@@ -752,13 +824,6 @@ export const UserOperation = () => {
             >
               Deploy a AA Account
             </button>
-            <button
-              disabled={!(aAAccountAddress !== "")} // 當 Metamask 尚未連線或 Account 沒有地址時不可點擊
-              type="button"
-              onClick={() => handleDepositAccount()}
-            >
-              Deposit to AA Account
-            </button>
           </span>
           <section>
             <p>Address of AA Account: {aAAccountAddress.toString()}</p>
@@ -827,8 +892,6 @@ export const UserOperation = () => {
     return (
       <>
         <div className="user-op-form">
-          {/* <form onSubmit={handleSubmit}> */}
-          {/* <div className="form-input"> */}
           <button onClick={() => handleShowHideUserOp()}>
             Show/Hide UserOp
           </button>
@@ -947,16 +1010,10 @@ export const UserOperation = () => {
                 </div>
               </>
             )}
-            <div>
-              <input disabled={!!error} type="submit" value="Submit" />
-            </div>
           </form>
           <div>
             {error && <text className="Error">{`error: ${error}`}</text>}
           </div>
-          {/* <div>
-                        <button onClick={() => handleResetUserOp()}>Reset the UserOp</button>
-                    </div> */}
         </div>
       </>
     );

@@ -79,14 +79,26 @@ It will start up at [http://localhost:3000/account-abstraction](http://localhost
 | Chain ID               | 1337                                  |
 | Currency symbol        | ETH                                   |
 
-## 5. imToken Webapp
+## 5. imToken Webapp without Hardhat Node
+
+- Create typechain scripts and SDK test
 
 ```shell
-% PKG5="account-abstraction-sdk" && pnpm --filter ${PKG5} test
-% PKG4="account-abstraction" && pnpm --filter ${PKG4} typechain
-
 % PKG3="imtoken-webapp" && pnpm --filter ${PKG3} typechain
+% PKG4="account-abstraction" && pnpm --filter ${PKG4} typechain
+% PKG5="account-abstraction-sdk" && pnpm --filter ${PKG5} test
+```
+
+- Start up the imToken AA Webapp on [http://localhost:3000/account-abstraction](http://localhost:3000/account-abstraction)
+
+```shell
 % PKG3="imtoken-webapp" && pnpm --filter ${PKG3} dev
+```
+
+- Please add the GoerliUSDC token address into your Metamask list for AA transfer test
+
+```
+0x07865c6E87B9F70255377e024ace6630C1Eaa37F
 ```
 
 ## 6. Other tests

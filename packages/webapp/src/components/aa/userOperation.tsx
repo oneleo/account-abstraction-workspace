@@ -158,6 +158,14 @@ export const UserOperation = () => {
             )
 
             // 偵測是否已部署 Account 合約
+            if ((await provider.getCode(accountAddress)) === "0x") {
+                setAAAccountAddress("")
+                setAABalanceEth(Ethers5.BigNumber.from(0))
+                setAABalanceUsdc(Ethers5.BigNumber.from(0))
+                setAANonce(Utils.encodeAANonce(AA_DEFAULT_NONCE_KEY, 0))
+                setAABalanceEthInEntryPoint(Ethers5.BigNumber.from(0))
+            }
+            // 已偵測有部署 Account 合約
             if ((await provider.getCode(accountAddress)) !== "0x") {
                 setAAAccountAddress(accountAddress)
 
