@@ -1,93 +1,101 @@
 .user-op-form {
-    width: 500px;
+  width: 500px;
 }
 
 .metamask-form {
-    display: flex; // Enable Flexbox container
-    flex-direction: row;
-    gap: 10px; // Flexbox item
+  display: flex; // Enable Flexbox container
+  flex-direction: row;
 
-    section {
-        padding: 10px; // 調整 section 內容的內距
-        font-size: 16px; // 調整 section 內容的字體大小
-        white-space: nowrap; // 防止文字換行
-        overflow: hidden; // 超出部分隱藏
-        text-overflow: ellipsis; // 超出部分以省略符號表示
-    }
+  table {
+    border-collapse: collapse;
+    table-layout: auto;
+    margin: 10px;
+  }
 
-    button {
-        margin: 8px; // 調整您想要的間距寬度
-        font-size: 14px;
-        width: 80px; // 調整按鈕寬度
-        height: 60px; // 調整按鈕高度
-    }
+  td {
+    border: 0;
+  }
+
+  button {
+    margin: 8px; // 調整您想要的間距寬度
+    font-size: 14px;
+    width: 80px; // 調整按鈕寬度
+    height: 60px; // 調整按鈕高度
+  }
 }
 
 .aa-deploy-form {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  display: flex;
+  flex-direction: row;
 
-    input {
-        width: 75px;
-    }
+  input {
+    width: 75px;
+  }
 
-    button {
-        margin: 8px; // 調整您想要的間距寬度
-        font-size: 14px;
-        width: 80px; // 調整按鈕寬度
-        height: 60px; // 調整按鈕高度
-    }
+  table {
+    border-collapse: collapse;
+    table-layout: auto;
+    margin: 10px;
+  }
 
-    section {
-        padding: 10px; // 調整 section 內容的內距
-        font-size: 16px; // 調整 section 內容的字體大小
-        white-space: nowrap; // 防止文字換行
-        overflow: hidden; // 超出部分隱藏
-        text-overflow: ellipsis; // 超出部分以省略符號表示
-    }
-}
+  td {
+    border: 0;
+  }
 
-.user-op-form {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding-left: 0;
-    padding-right: 0;
-    input {
-        width: 300px;
-        height: 20px;
-    }
-}
-
-.user-op-form > form > div {
-    display: flex;
-    flex-direction: row;
-    gap: 0px;
+  button {
+    margin: 8px; // 調整您想要的間距寬度
+    font-size: 14px;
+    width: 80px; // 調整按鈕寬度
+    height: 60px; // 調整按鈕高度
+  }
 }
 
 .transfer-token-form {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding-left: 0;
-    padding-right: 0;
-    input {
-        width: 450px;
-        height: 30px;
-    }
-    select {
-        width: 150px;
-        height: 30px;
-    }
-    button {
-        margin: 8px; // 調整您想要的間距寬度
-        font-size: 14px;
-        width: 160px; // 調整按鈕寬度
-        height: 60px; // 調整按鈕高度
-    }
+  display: flex;
+  flex-direction: column;
+
+  input {
+    width: 450px;
+    height: 20px;
+  }
+
+  select {
+    width: 150px;
+    height: 20px;
+  }
+
+  button {
+    margin: 8px; // 調整您想要的間距寬度
+    font-size: 14px;
+    width: 180px; // 調整按鈕寬度
+    height: 60px; // 調整按鈕高度
+  }
+}
+
+.user-op-form {
+  button {
+    margin: 8px; // 調整您想要的間距寬度
+    font-size: 14px;
+    width: 800px; // 調整按鈕寬度
+    height: 20px; // 調整按鈕高度
+  }
+
+  input {
+    width: 450px;
+    height: 20px;
+  }
+
+  table {
+    border-collapse: collapse;
+    table-layout: auto;
+    width: 800px;
+  }
+
+  td {
+    border: 0;
+  }
 }
 
 .Error {
-    color: red;
+  color: red;
 }
