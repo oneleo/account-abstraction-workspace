@@ -101,6 +101,17 @@ It will start up at [http://localhost:3000/account-abstraction](http://localhost
 0x07865c6E87B9F70255377e024ace6630C1Eaa37F
 ```
 
+- Note: If you wish to update the submodule of the SDK, you can execute the following quick update command.
+
+```shell
+% cd packages/imtoken-webapp/lib/account-abstraction
+% git pull origin main
+% cd ../../../../
+% PKG3="imtoken-webapp" && pnpm --filter ${PKG3} typechain
+% PKG4="account-abstraction" && pnpm --filter ${PKG4} typechain
+% PKG5="account-abstraction-sdk" && pnpm --filter ${PKG5} test
+```
+
 ## 6. Other tests
 
 ```shell
