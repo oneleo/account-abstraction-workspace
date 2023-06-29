@@ -157,6 +157,21 @@ importers:
       '@typechain/ethers-v5':
         specifier: ^10.1.0
         version: 10.1.0(@ethersproject/abi@5.7.0)(@ethersproject/bytes@5.7.0)(@ethersproject/providers@5.7.2)(ethers@5.7.2)(typechain@8.1.0)(typescript@5.1.3)
+      '@uniswap/sdk-core':
+        specifier: ^4.0.1
+        version: 4.0.1
+      '@uniswap/v2-periphery':
+        specifier: 1.1.0-beta.0
+        version: 1.1.0-beta.0
+      '@uniswap/v3-core':
+        specifier: ^1.0.1
+        version: 1.0.1
+      '@uniswap/v3-periphery':
+        specifier: ^1.4.3
+        version: 1.4.3
+      '@uniswap/v3-sdk':
+        specifier: ^3.9.0
+        version: 3.9.0(hardhat@2.15.0)
       eslint-config-prettier:
         specifier: ^8.8.0
         version: 8.8.0(eslint@8.41.0)
@@ -1473,6 +1488,10 @@ packages:
     resolution: {integrity: sha512-siviV3PZV/fHfPaoIC51rf1Jb6iElkYWnNYZ0leO23/ukXuvOyoC/ahy8jqiV7g+++9Nuo3n/rk5ajSN/+d/Sg==}
     dev: true
 
+  /@openzeppelin/contracts@3.4.1-solc-0.7-2:
+    resolution: {integrity: sha512-tAG9LWg8+M2CMu7hIsqHPaTyG4uDzjr6mhvH96LvOpLZZj6tgzTluBt+LsCf1/QaYrlis6pITvpIaIhE+iZB+Q==}
+    dev: true
+
   /@openzeppelin/contracts@3.4.2:
     resolution: {integrity: sha512-z0zMCjyhhp4y7XKAcDAi3Vgms4T2PstwBdahiO0+9NaGICQKjynK3wduSRplTgk4LXmoO1yfDGO5RbjKYxtuxA==}
     dev: true
@@ -1908,8 +1927,56 @@ packages:
       eslint-visitor-keys: 3.4.1
     dev: false
 
+  /@uniswap/lib@1.1.1:
+    resolution: {integrity: sha512-2yK7sLpKIT91TiS5sewHtOa7YuM8IuBXVl4GZv2jZFys4D2sY7K5vZh6MqD25TPA95Od+0YzCVq6cTF2IKrOmg==}
+    engines: {node: '>=10'}
+    dev: true
+
   /@uniswap/lib@4.0.1-alpha:
     resolution: {integrity: sha512-f6UIliwBbRsgVLxIaBANF6w09tYqc6Y/qXdsrbEmXHyFA7ILiKrIwRFXe1yOg8M3cksgVsO9N7yuL2DdCGQKBA==}
+    engines: {node: '>=10'}
+    dev: true
+
+  /@uniswap/sdk-core@3.2.3:
+    resolution: {integrity: sha512-ERVYKa5ENPwDA6/UZ45H1D5xIqTFcvDYpLxcncOzX8vRXuCAupMUoFFH5s/xx8IMcstONsAOPR1h4vRCzUkSsA==}
+    engines: {node: '>=10'}
+    dependencies:
+      '@ethersproject/address': 5.7.0
+      big.js: 5.2.2
+      decimal.js-light: 2.5.1
+      jsbi: 3.2.5
+      tiny-invariant: 1.3.1
+      toformat: 2.0.0
+    dev: true
+
+  /@uniswap/sdk-core@4.0.1:
+    resolution: {integrity: sha512-zCL2lemiEoiaRxRrM5V7oajadA2bJgf40lPh90taRIWgJoe0DN5KgLnz4G0N6uwbps9+YtZTocyztJslEsIkrg==}
+    engines: {node: '>=10'}
+    dependencies:
+      '@ethersproject/address': 5.7.0
+      big.js: 5.2.2
+      decimal.js-light: 2.5.1
+      jsbi: 3.2.5
+      tiny-invariant: 1.3.1
+      toformat: 2.0.0
+    dev: true
+
+  /@uniswap/swap-router-contracts@1.3.0(hardhat@2.15.0):
+    resolution: {integrity: sha512-iKvCuRkHXEe0EMjOf8HFUISTIhlxI57kKFllf3C3PUIE0HmwxrayyoflwAz5u/TRsFGYqJ9IjX2UgzLCsrNa5A==}
+    engines: {node: '>=10'}
+    dependencies:
+      '@openzeppelin/contracts': 3.4.2-solc-0.7
+      '@uniswap/v2-core': 1.0.1
+      '@uniswap/v3-core': 1.0.0
+      '@uniswap/v3-periphery': 1.4.1(hardhat@2.15.0)
+      dotenv: 14.3.2
+      hardhat-watcher: 2.5.0(hardhat@2.15.0)
+    transitivePeerDependencies:
+      - hardhat
+    dev: true
+
+  /@uniswap/v2-core@1.0.0:
+    resolution: {integrity: sha512-BJiXrBGnN8mti7saW49MXwxDBRFiWemGetE58q8zgfnPPzQKq55ADltEILqOt6VFZ22kVeVKbF8gVd8aY3l7pA==}
     engines: {node: '>=10'}
     dev: true
 
@@ -1918,9 +1985,36 @@ packages:
     engines: {node: '>=10'}
     dev: true
 
+  /@uniswap/v2-periphery@1.1.0-beta.0:
+    resolution: {integrity: sha512-6dkwAMKza8nzqYiXEr2D86dgW3TTavUvCR0w2Tu33bAbM8Ah43LKAzH7oKKPRT5VJQaMi1jtkGs1E8JPor1n5g==}
+    engines: {node: '>=10'}
+    dependencies:
+      '@uniswap/lib': 1.1.1
+      '@uniswap/v2-core': 1.0.0
+    dev: true
+
   /@uniswap/v3-core@1.0.0:
     resolution: {integrity: sha512-kSC4djMGKMHj7sLMYVnn61k9nu+lHjMIxgg9CDQT+s2QYLoA56GbSK9Oxr+qJXzzygbkrmuY6cwgP6cW2JXPFA==}
     engines: {node: '>=10'}
+    dev: true
+
+  /@uniswap/v3-core@1.0.1:
+    resolution: {integrity: sha512-7pVk4hEm00j9tc71Y9+ssYpO6ytkeI0y7WE9P6UcmNzhxPePwyAxImuhVsTqWK9YFvzgtvzJHi64pBl4jUzKMQ==}
+    engines: {node: '>=10'}
+    dev: true
+
+  /@uniswap/v3-periphery@1.4.1(hardhat@2.15.0):
+    resolution: {integrity: sha512-Ab0ZCKOQrQMKIcpBTezTsEhWfQjItd0TtkCG8mPhoQu+wC67nPaf4hYUhM6wGHeFUmDiYY5MpEQuokB0ENvoTg==}
+    engines: {node: '>=10'}
+    dependencies:
+      '@openzeppelin/contracts': 3.4.2-solc-0.7
+      '@uniswap/lib': 4.0.1-alpha
+      '@uniswap/v2-core': 1.0.1
+      '@uniswap/v3-core': 1.0.0
+      base64-sol: 1.0.1
+      hardhat-watcher: 2.5.0(hardhat@2.15.0)
+    transitivePeerDependencies:
+      - hardhat
     dev: true
 
   /@uniswap/v3-periphery@1.4.3:
@@ -1932,6 +2026,32 @@ packages:
       '@uniswap/v2-core': 1.0.1
       '@uniswap/v3-core': 1.0.0
       base64-sol: 1.0.1
+    dev: true
+
+  /@uniswap/v3-sdk@3.9.0(hardhat@2.15.0):
+    resolution: {integrity: sha512-LuoF3UcY1DxSAQKJ3E4/1Eq4HaNp+x+7q9mvbpiu+/PBj+O1DjLforAMrKxu+RsA0aarmZtz7yBnAPy+akgfgQ==}
+    engines: {node: '>=10'}
+    dependencies:
+      '@ethersproject/abi': 5.7.0
+      '@ethersproject/solidity': 5.7.0
+      '@uniswap/sdk-core': 3.2.3
+      '@uniswap/swap-router-contracts': 1.3.0(hardhat@2.15.0)
+      '@uniswap/v3-periphery': 1.4.3
+      '@uniswap/v3-staker': 1.0.0
+      tiny-invariant: 1.3.1
+      tiny-warning: 1.0.3
+    transitivePeerDependencies:
+      - hardhat
+    dev: true
+
+  /@uniswap/v3-staker@1.0.0:
+    resolution: {integrity: sha512-JV0Qc46Px5alvg6YWd+UIaGH9lDuYG/Js7ngxPit1SPaIP30AlVer1UYB7BRYeUVVxE+byUyIeN5jeQ7LLDjIw==}
+    engines: {node: '>=10'}
+    deprecated: Please upgrade to 1.0.1
+    dependencies:
+      '@openzeppelin/contracts': 3.4.1-solc-0.7-2
+      '@uniswap/v3-core': 1.0.0
+      '@uniswap/v3-periphery': 1.4.3
     dev: true
 
   /abbrev@1.0.9:
@@ -2302,6 +2422,10 @@ packages:
     resolution: {integrity: sha512-GPEid2Y9QU1Exl1rpO9B2IPJGHPSupF5GnVIP0blYvNOMer2bTvSWs1jGOUg04hTmu67nmLsQ9TBo1puaotBHg==}
     engines: {node: '>=0.6'}
     dev: false
+
+  /big.js@5.2.2:
+    resolution: {integrity: sha512-vyL2OymJxmarO8gxMr0mhChsO9QGwhynfuu4+MHTAW6czfq9humCB7rKpUjDd9YUiDPU4mzpyupFSvOClAwbmQ==}
+    dev: true
 
   /bigint-crypto-utils@3.2.2:
     resolution: {integrity: sha512-U1RbE3aX9ayCUVcIPHuPDPKcK3SFOXf93J1UK/iHlJuQB7bhagPIX06/CLpLEsDThJ7KA4Dhrnzynl+d2weTiw==}
@@ -2852,6 +2976,10 @@ packages:
     engines: {node: '>=10'}
     dev: true
 
+  /decimal.js-light@2.5.1:
+    resolution: {integrity: sha512-qIMFpTMZmny+MMIitAB6D7iVPEorVw6YQRWkvarTkT4tBeSLLiHzcwj6q0MmYSFCiVpiqPJTJEYIrpcPzVEIvg==}
+    dev: true
+
   /decode-uri-component@0.2.2:
     resolution: {integrity: sha512-FqUYQ+8o158GyGTrMFJms9qh3CqTKvAqgqsTnkLI8sKu0028orqBhxNMFkFen0zGyg6epACD32pjVk58ngIErQ==}
     engines: {node: '>=0.10'}
@@ -2978,6 +3106,11 @@ packages:
 
   /dom-walk@0.1.2:
     resolution: {integrity: sha512-6QvTW9mrGeIegrFXdtQi9pk7O/nSK6lSdXW2eqUspN5LWD7UTji2Fqw5V2YLjBpHEoU9Xl/eUWNpDeZvoyOv2w==}
+    dev: true
+
+  /dotenv@14.3.2:
+    resolution: {integrity: sha512-vwEppIphpFdvaMCaHfCEv9IgwcxMljMw2TnAQBB4VWPvzXQLTb82jwmdOKzlEVUL3gNFT4l4TPKO+Bn+sqcrVQ==}
+    engines: {node: '>=12'}
     dev: true
 
   /dotenv@16.0.3:
@@ -4172,6 +4305,15 @@ packages:
       - '@codechecks/client'
     dev: true
 
+  /hardhat-watcher@2.5.0(hardhat@2.15.0):
+    resolution: {integrity: sha512-Su2qcSMIo2YO2PrmJ0/tdkf+6pSt8zf9+4URR5edMVti6+ShI8T3xhPrwugdyTOFuyj8lKHrcTZNKUFYowYiyA==}
+    peerDependencies:
+      hardhat: ^2.0.0
+    dependencies:
+      chokidar: 3.5.3
+      hardhat: 2.15.0(ts-node@8.0.0)(typescript@5.1.3)
+    dev: true
+
   /hardhat@2.15.0(ts-node@8.0.0)(typescript@5.1.3):
     resolution: {integrity: sha512-cC9tM/N10YaES04zPOp7yR13iX3YibqaNmi0//Ep40Nt9ELIJx3kFpQmucur0PAIfXYpGnw5RuXHNLkxpnVHEw==}
     engines: {node: '>=14.0.0'}
@@ -4705,6 +4847,10 @@ packages:
     hasBin: true
     dependencies:
       argparse: 2.0.1
+
+  /jsbi@3.2.5:
+    resolution: {integrity: sha512-aBE4n43IPvjaddScbvWRA2YlTzKEynHzu7MqOyTipdHucf/VxS63ViCjxYRg86M8Rxwbt/GfzHl1kKERkt45fQ==}
+    dev: true
 
   /jsbn@0.1.1:
     resolution: {integrity: sha512-UVU9dibq2JcFWxQPA6KCqj5O42VOmAY3zQUfEKxU0KpTGXwNoCjkX1e13eHNvw/xPynt6pU0rZ1htjWTNTSXsg==}
@@ -6778,6 +6924,14 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
+  /tiny-invariant@1.3.1:
+    resolution: {integrity: sha512-AD5ih2NlSssTCwsMznbvwMZpJ1cbhkGd2uueNxzv2jDlEeZdU04JQfRnggJQ8DrcVBGjAsCKwFBbDlVNtEMlzw==}
+    dev: true
+
+  /tiny-warning@1.0.3:
+    resolution: {integrity: sha512-lBN9zLN/oAf68o3zNXYrdCt1kP8WsiGW8Oo2ka41b2IM5JL/S1CTyX1rW0mb/zSuJun0ZUrDxx4sqvYS2FWzPA==}
+    dev: true
+
   /titleize@3.0.0:
     resolution: {integrity: sha512-KxVu8EYHDPBdUYdKZdKtU2aj2XfEx9AfjXxE/Aj0vT06w2icA09Vus1rh6eSu1y01akYg6BjIK/hxyLJINoMLQ==}
     engines: {node: '>=12'}
@@ -6795,6 +6949,10 @@ packages:
     engines: {node: '>=8.0'}
     dependencies:
       is-number: 7.0.0
+
+  /toformat@2.0.0:
+    resolution: {integrity: sha512-03SWBVop6nU8bpyZCx7SodpYznbZF5R4ljwNLBcTQzKOD9xuihRo/psX58llS1BMFhhAI08H3luot5GoXJz2pQ==}
+    dev: true
 
   /toidentifier@1.0.1:
     resolution: {integrity: sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==}

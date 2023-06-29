@@ -105,11 +105,21 @@ It will start up at [http://localhost:3000/account-abstraction](http://localhost
 
 ```shell
 % cd packages/imtoken-webapp/lib/account-abstraction
-% git pull origin main
+% git remote show origin
+% git branch --set-upstream-to=origin/fix-pimlico-log fix-pimlico-log
+% git branch --set-upstream-to=origin/main main
+% git pull origin fix-pimlico-log # % git pull origin main
+% git remote show origin
 % cd ../../../../
+
+% pnpm install
 % PKG3="imtoken-webapp" && pnpm --filter ${PKG3} typechain
 % PKG4="account-abstraction" && pnpm --filter ${PKG4} typechain
 % PKG5="account-abstraction-sdk" && pnpm --filter ${PKG5} test
+
+# Need to restart VSCode
+
+% PKG3="imtoken-webapp" && pnpm --filter ${PKG3} dev
 ```
 
 ## 6. Other tests

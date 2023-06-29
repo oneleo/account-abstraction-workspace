@@ -5,76 +5,50 @@ import * as UserOp from "userop";
 import {
   ImAccount,
   IBuilderOpts,
-  IMiddlewareGenerator,
-  GasLimitMiddlewareGenerator,
   OnboardingPaymasterGenerator,
   PimlicoPaymasterGenerator,
 } from "@/../lib/account-abstraction/sdk";
-
-import {
-  ImAccountFactory__factory,
-  ImAccountFactory,
-  OnboardingPaymaster__factory,
-  OnboardingPaymaster,
-} from "@/../lib/account-abstraction/typechain-types";
 
 // import * as Addresses from "./addressea"
 import * as Utils from "./utils";
 
 import * as TypesFactoryEntryPoint from "@/../typechain-types/@account-abstraction/contracts/factories/EntryPoint__factory";
-import * as TypesFactoryAccount from "@/../typechain-types/@account-abstraction/contracts/factories/SimpleAccount__factory";
 import * as TypesFactoryErc20 from "@/../typechain-types/@openzeppelin/contracts/factories/ERC20__factory";
 import * as TypesFactoryAccountFactory from "@/../typechain-types/@account-abstraction/contracts/factories/SimpleAccountFactory__factory";
-
-import * as TypesEntryPoint from "@/../typechain-types/@account-abstraction/contracts/EntryPoint";
+import * as TypesFactoryOnboardingPaymaster from "@/../lib/account-abstraction/typechain-types/factories/src/paymaster/OnboardingPaymaster__factory";
 
 // Avoid using "as" to prevent errors related to "Should not import the named export 'xxx' (imported as 'xxx') from default-exporting module (only default export is available soon)".
-import jsonEntryPoint from "@account-abstraction/contracts/artifacts/EntryPoint.json";
-import jsonAccount from "@account-abstraction/contracts/artifacts/SimpleAccount.json";
 import jsonErc20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
 
 // If CSS is imported here, it will generate an error related to "The resource <URL> was preloaded using link preload but not used within a few seconds from the window’s load event. Please make sure it has an appropriate as value and it is preloaded intentionally.".
 import "./aa.scss";
 
 const debug: boolean = false;
-const hardhatForkNet: string = "goerli";
-const USER_OP_FILE_PATH: string = "userOp.json";
+const NETWORK_NAME = Utils.NETWORK_NAME;
 
 const AA_DEFAULT_NONCE_KEY = 0;
+const ONBOARDING_PAYMASTER_ACTIVETY_ID = 0;
 
+// imToken AA Server
+const BUNDLER_RPC_URL = "http://bundler.dev.rivo.network/unsafe/rpc";
+// const BUNDLER_RPC_URL =
+//   "https://eth-goerli.g.alchemy.com/v2/F8FyG05QzP2Hcz17jqhRA6-0LPsn5ARq";
+// const BUNDLER_RPC_URL = "http://bundler.dev.rivo.network/safe/rpc";
+const ETHERSPOT_RPC_URL = "https://goerli-bundler.etherspot.io/";
+
+const DEFAULT_REACT_USESTATE_PARAMS = {
+  tokenAmount: 100000, // 1000000,
+  salt: 1234567890, // 999666333,
+};
+
+// 欲請 Account 執行的指令
 type ExecuteArgs = {
   dest: string;
   value: Ethers5.BigNumber;
   func: Uint8Array;
 };
 
-// My AA Contracts on Hardhat Node
-// const ENTRY_POINT_ADDRESS = "0x3Fe10E5Bf9809abBD60953032C4996DD7bf07D5c"
-// const ACCOUNT_FACTORY_PROXY_ADDRESS = "0xE0Cc10b05bD1d78950A9D065f080E2Aa308839a6"
-
-// imToken AA Contracts on Goerli Testnet
-const ENTRY_POINT_ADDRESS = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
-const ACCOUNT_FACTORY_PROXY_ADDRESS =
-  "0xF3A26E979977053fb8D3bd6cCcd74A8f71BDddD1";
-
-const ONBOARDING_PAYMASTER_ADDRESS =
-  "0x491B26ed23Bb85D23CC9e5428F99A6EE25320025";
-const PIMLICO_PAYMASTER_ADDRESS = "0xEc43912D8C772A0Eba5a27ea5804Ba14ab502009";
-
-const BUNDLER_RPC_URL = "http://bundler.dev.rivo.network/unsafe/rpc";
-
-const SIGNER6_ADDRESS = "0x81578FBe3Ca2941e50404Ec4E713625169C33e53";
-
-const USDT_ADDRESS =
-  hardhatForkNet === "mainnet"
-    ? "0xdAC17F958D2ee523a2206206994597C13D831ec7"
-    : "0xC2C527C0CACF457746Bd31B2a698Fe89de2b6d49";
-
-const USDC_ADDRESS =
-  hardhatForkNet === "mainnet"
-    ? "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
-    : "0x07865c6E87B9F70255377e024ace6630C1Eaa37F";
-
+// UserOp 預設值
 const defaultUserOp: UserOp.IUserOperation = {
   sender: Ethers5.constants.AddressZero,
   nonce: Utils.encodeAANonce(AA_DEFAULT_NONCE_KEY, 0),
@@ -93,6 +67,7 @@ export const UserOperation = () => {
   // -----------------
   // -- React Hooks --
   // -----------------
+  // UserOp State
   const [userOp, setUserOp] =
     React.useState<UserOp.IUserOperation>(defaultUserOp);
   const [isUserOpVisible, setIsUserOpVisible] = React.useState(false);
@@ -103,11 +78,16 @@ export const UserOperation = () => {
   const [actualGasUsed, setActualGasUsed] =
     React.useState<Ethers5.BigNumberish>(Ethers5.BigNumber.from("0"));
 
+  // Token State
   const [tokenSymbol, setTokenSymbol] = React.useState<string>("USDC");
-  const [toAddress, setToAddress] = React.useState<string>(SIGNER6_ADDRESS);
-  const [tokenAmount, setTokenAmount] = React.useState<Ethers5.BigNumberish>(
-    Ethers5.BigNumber.from("1000000")
+  const [toAddress, setToAddress] = React.useState<string>(
+    Utils.SIGNER6_ADDRESS
   );
+  const [tokenAmount, setTokenAmount] = React.useState<Ethers5.BigNumberish>(
+    Ethers5.BigNumber.from(DEFAULT_REACT_USESTATE_PARAMS.tokenAmount)
+  );
+  const [tokenDecimal, setTokenDecimal] = React.useState<number>(6);
+
   // Metamask State
   const [metamaskAddress, setMetamaskAddress] = React.useState<string>("");
   const [metamaskBalanceEth, setMetamaskBalanceEth] =
@@ -115,9 +95,9 @@ export const UserOperation = () => {
   const [metamaskBalanceUsdc, setMetamaskBalanceUsdc] =
     React.useState<Ethers5.BigNumberish>(Ethers5.BigNumber.from(0));
 
-  // AA Account State and
+  // AA Account State
   const [aADeploySalt, setAADeploySalt] = React.useState<Ethers5.BigNumberish>(
-    Ethers5.BigNumber.from(999666333)
+    Ethers5.BigNumber.from(DEFAULT_REACT_USESTATE_PARAMS.salt)
   );
   const [aAAccountAddress, setAAAccountAddress] = React.useState<string>("");
   const [aABalanceEth, setAABalanceEth] = React.useState<Ethers5.BigNumberish>(
@@ -130,8 +110,8 @@ export const UserOperation = () => {
   const [aANonce, setAANonce] = React.useState<Ethers5.BigNumberish>(
     Utils.encodeAANonce(AA_DEFAULT_NONCE_KEY, 0)
   );
-
-  // const [imAccount, setImAccount] = React.useState<ImAccount | null>(null);
+  const [aAOnboardingFreeQuota, setAAOnboardingFreeQuota] =
+    React.useState<Ethers5.BigNumberish>(Ethers5.BigNumber.from(0));
 
   // Other State
   const [error, setError] = React.useState<string>("");
@@ -174,29 +154,49 @@ export const UserOperation = () => {
       return;
     }
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
-    const signer = provider.getSigner();
+
+    // 建立 USDC 合約實例
     const contractUsdc = TypesFactoryErc20.ERC20__factory.connect(
-      USDC_ADDRESS,
+      Utils.USDC_ADDRESS,
       provider
     );
+
+    // 建立 Account Factory 合約實例
     const contractAccountFactoryProxy =
       TypesFactoryAccountFactory.SimpleAccountFactory__factory.connect(
-        ACCOUNT_FACTORY_PROXY_ADDRESS,
+        Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
         provider
       );
-    // 非同步函數
+
+    // 建立 Onboarding Paymaster 合約實例
+    const contractOnboardingPaymaster =
+      TypesFactoryOnboardingPaymaster.OnboardingPaymaster__factory.connect(
+        Utils.ONBOARDING_PAYMASTER_ADDRESS,
+        provider
+      );
+
+    // useEffect 內的非同步函數會放在這裡
     const getBalanceAndAccountNonce = async () => {
       // 取得 User 的 ETH 及 USDC 餘額
       setMetamaskBalanceEth(await provider.getBalance(metamaskAddress));
       setMetamaskBalanceUsdc(await contractUsdc.balanceOf(metamaskAddress));
 
-      // 透過 User 取得 Account 地址
+      // 取得 Onboarding Paymaster 的 Activity 免費轉帳額度資訊
+      setAAOnboardingFreeQuota(
+        (
+          await contractOnboardingPaymaster.getActivity(
+            ONBOARDING_PAYMASTER_ACTIVETY_ID
+          )
+        ).config.quotaPerSender
+      );
+
+      // 透過當前 Metamask User 及指定 Salt 取得 Account 地址
       const accountAddress = await contractAccountFactoryProxy.getAddress(
         metamaskAddress,
         aADeploySalt
       );
 
-      // 偵測是否已部署 Account 合約
+      // 偵測鏈上是否已部署此 Account 合約：失敗
       if ((await provider.getCode(accountAddress)) === "0x") {
         setAAAccountAddress("");
         setAABalanceEth(Ethers5.BigNumber.from(0));
@@ -205,7 +205,7 @@ export const UserOperation = () => {
         setAABalanceEthInEntryPoint(Ethers5.BigNumber.from(0));
       }
 
-      // 偵測到此 Salt 有部署過 Account 合約
+      // 偵測鏈上是否已部署此 Account 合約：成功
       if ((await provider.getCode(accountAddress)) !== "0x") {
         // 從 Metamask 讀取資訊
         setAAAccountAddress(accountAddress);
@@ -215,7 +215,7 @@ export const UserOperation = () => {
         // 從 EntryPoint 讀取資訊
         const contractEntryPoint =
           TypesFactoryEntryPoint.EntryPoint__factory.connect(
-            ENTRY_POINT_ADDRESS,
+            Utils.ENTRY_POINT_ADDRESS,
             provider
           );
         setAANonce(
@@ -282,6 +282,7 @@ export const UserOperation = () => {
     setAABalanceUsdc(Ethers5.BigNumber.from(0));
     setAANonce(Ethers5.BigNumber.from(0));
     setUserOpHash("");
+    setTransactionHash("");
   };
 
   const handleShowHideUserOp = () => {
@@ -314,32 +315,30 @@ export const UserOperation = () => {
     const signer = provider.getSigner();
 
     // 在部署新 Account 的同時，進行 USDC 最大值的 Approve，以利後續向 PimlicoPaymaster 支付 USDC 手續費
-    const ifaceErc20 = new Ethers5.utils.Interface(jsonErc20.abi);
-    const encodeUsdcApprove = ifaceErc20.encodeFunctionData("approve", [
-      Ethers5.utils.getAddress(PIMLICO_PAYMASTER_ADDRESS),
-      Ethers5.constants.MaxUint256,
-    ]);
     const executeArgs: ExecuteArgs = {
-      dest: Ethers5.utils.getAddress(USDC_ADDRESS), // dest
+      dest: Ethers5.utils.getAddress(Utils.USDC_ADDRESS), // dest
       value: Ethers5.BigNumber.from(0), // value
-      func: Ethers5.utils.arrayify(encodeUsdcApprove), // func
+      func: Ethers5.utils.arrayify(
+        Utils.UsdcApproveCalldata(Utils.PIMLICO_PAYMASTER_ADDRESS)
+      ), // func
     };
     if (debug) {
       // 查看 executeArgs 內容
       console.log(`executeArgs: ${JSON.stringify(executeArgs)}`);
     }
 
-    // 建立一個新的 ImAccount 實例
-    const activityId = 0;
+    // 建立一個新的 ImAccount Via Onboarding Paymaster 實例
     const onboardingPaymasterGenerator = new OnboardingPaymasterGenerator(
-      ONBOARDING_PAYMASTER_ADDRESS,
-      activityId
+      Utils.ONBOARDING_PAYMASTER_ADDRESS,
+      ONBOARDING_PAYMASTER_ACTIVETY_ID
     );
     const imAccountOpts: IBuilderOpts = {
-      entryPoint: ENTRY_POINT_ADDRESS,
-      factory: ACCOUNT_FACTORY_PROXY_ADDRESS,
+      entryPoint: Utils.ENTRY_POINT_ADDRESS,
+      factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
       paymasterMiddlewareGenerator: onboardingPaymasterGenerator,
       salt: aADeploySalt,
+      // overrideBundlerEstimateRpc: ETHERSPOT_RPC_URL,
+      useOriginMaxFeePerGasToEstimate: Ethers5.BigNumber.from(1),
     };
     const imAccount = await ImAccount.init(
       signer,
@@ -379,6 +378,7 @@ export const UserOperation = () => {
 
     // 在新一輪的交易完成後，先將上一次的 userOp 資訊清空
     setUserOpHash("");
+    setTransactionHash("");
 
     if (res) {
       // 向 Bundler 提出 eth_getUserOperationReceipt 請求，以取得 gas 資訊
@@ -399,18 +399,21 @@ export const UserOperation = () => {
   // --------------------------------------
   // ---- Onboarding Paymaster 按鈕事件 ----
   // -- 對 UserOp 簽名後傳送給 Bundler 上鏈 --
+  // --------- 轉送 ETH、USDC 交易 ---------
   // --------------------------------------
   const handleSigTransactionViaOnboarding = React.useCallback(async () => {
     if (!window.ethereum) {
       return;
     }
+    setError("");
 
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
     const signer = provider.getSigner();
 
+    // 宣告一個空的 executeArgs
     let executeArgs: ExecuteArgs = {
       dest: Ethers5.utils.getAddress(Ethers5.constants.AddressZero), // dest
-      value: Ethers5.utils.parseEther("0"), // value
+      value: Ethers5.BigNumber.from(0), // value
       func: Ethers5.utils.arrayify("0x"), // func
     };
 
@@ -418,7 +421,7 @@ export const UserOperation = () => {
     if (tokenSymbol === "ETH") {
       executeArgs = {
         dest: Ethers5.utils.getAddress(toAddress), // dest
-        value: Ethers5.utils.parseEther("1"), // value
+        value: Ethers5.BigNumber.from(tokenAmount), // value
         func: Ethers5.utils.arrayify("0x"), // func
       };
     }
@@ -426,13 +429,12 @@ export const UserOperation = () => {
     // 建立轉送 USDC 的 callData
     if (tokenSymbol === "USDC") {
       const ifaceErc20 = new Ethers5.utils.Interface(jsonErc20.abi);
-
       const encodeUsdcTransfer = ifaceErc20.encodeFunctionData("transfer", [
         Ethers5.utils.getAddress(toAddress),
         Ethers5.BigNumber.from(tokenAmount),
       ]);
       executeArgs = {
-        dest: Ethers5.utils.getAddress(USDC_ADDRESS), // dest
+        dest: Ethers5.utils.getAddress(Utils.USDC_ADDRESS), // dest
         value: Ethers5.BigNumber.from(0), // value
         func: Ethers5.utils.arrayify(encodeUsdcTransfer), // func
       };
@@ -447,17 +449,17 @@ export const UserOperation = () => {
       );
     }
 
-    // 建立一個新的 ImAccount 實例
-    const activityId = 0;
+    // 建立一個新的 ImAccount Via OnboardingPaymaster 實例
     const onboardingPaymasterGenerator = new OnboardingPaymasterGenerator(
-      ONBOARDING_PAYMASTER_ADDRESS,
-      activityId
+      Utils.ONBOARDING_PAYMASTER_ADDRESS,
+      ONBOARDING_PAYMASTER_ACTIVETY_ID
     );
     const imAccountOpts: IBuilderOpts = {
-      entryPoint: ENTRY_POINT_ADDRESS,
-      factory: ACCOUNT_FACTORY_PROXY_ADDRESS,
+      entryPoint: Utils.ENTRY_POINT_ADDRESS,
+      factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
       paymasterMiddlewareGenerator: onboardingPaymasterGenerator,
       salt: aADeploySalt,
+      overrideBundlerEstimateRpc: ETHERSPOT_RPC_URL,
     };
     const imAccount = await ImAccount.init(
       signer,
@@ -474,9 +476,9 @@ export const UserOperation = () => {
 
     // 送交易前先更新前端 userOp 資訊
     setUserOp(formatUserOp(imBuilder.getOp()));
-    let res, ev;
 
     // 估算完 gas 後，Signer 並對 userOp 簽名，最後將組合完成的 userOp 傳送給 Bundler
+    let res, ev;
     try {
       const client = await UserOp.Client.init(BUNDLER_RPC_URL);
       // 簽名及送出交易給 Bundler
@@ -497,6 +499,7 @@ export const UserOperation = () => {
 
     // 在新一輪的交易完成後，先將上一次的 userOp 資訊清空
     setUserOpHash("");
+    setTransactionHash("");
 
     if (res) {
       // 向 Bundler 提出 eth_getUserOperationReceipt 請求，以取得 gas 資訊
@@ -512,11 +515,12 @@ export const UserOperation = () => {
     if (ev) {
       setTransactionHash(ev.transactionHash);
     }
-  }, [userOp, aAAccountAddress, tokenSymbol, toAddress, tokenAmount]);
+  }, [userOp, aADeploySalt, tokenSymbol, toAddress, tokenAmount, tokenDecimal]);
 
   // --------------------------------------
   // ------ Pimlico Paymaster 按鈕事件 ------
   // -- 對 UserOp 簽名後傳送給 Bundler 上鏈 --
+  // ---------- 轉送 ETH、USDC 交易 ----------
   // --------------------------------------
 
   // -- 備註：在 PimlicoPaymaster 流程中 Approve USDC 是無作用，
@@ -525,13 +529,15 @@ export const UserOperation = () => {
     if (!window.ethereum) {
       return;
     }
+    setError("");
 
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
     const signer = provider.getSigner();
 
+    // 宣告一個空的 executeArgs
     let executeArgs: ExecuteArgs = {
       dest: Ethers5.utils.getAddress(Ethers5.constants.AddressZero), // dest
-      value: Ethers5.utils.parseEther("0"), // value
+      value: Ethers5.BigNumber.from(0), // value
       func: Ethers5.utils.arrayify("0x"), // func
     };
 
@@ -539,7 +545,7 @@ export const UserOperation = () => {
     if (tokenSymbol === "ETH") {
       executeArgs = {
         dest: Ethers5.utils.getAddress(toAddress), // dest
-        value: Ethers5.utils.parseEther("1"), // value
+        value: Ethers5.BigNumber.from(tokenAmount), // value
         func: Ethers5.utils.arrayify("0x"), // func
       };
     }
@@ -552,7 +558,7 @@ export const UserOperation = () => {
         Ethers5.BigNumber.from(tokenAmount),
       ]);
       executeArgs = {
-        dest: Ethers5.utils.getAddress(USDC_ADDRESS), // dest
+        dest: Ethers5.utils.getAddress(Utils.USDC_ADDRESS), // dest
         value: Ethers5.BigNumber.from(0), // value
         func: Ethers5.utils.arrayify(encodeUsdcTransfer), // func
       };
@@ -567,16 +573,17 @@ export const UserOperation = () => {
       );
     }
 
-    // 建立一個新的 ImAccount 實例
+    // 建立一個新的 ImAccount Via PimlicoPaymaster 實例
     const pimlicoPaymasterGenerator = new PimlicoPaymasterGenerator(
       provider,
-      PIMLICO_PAYMASTER_ADDRESS
+      Utils.PIMLICO_PAYMASTER_ADDRESS
     );
     const imAccountOpts: IBuilderOpts = {
-      entryPoint: ENTRY_POINT_ADDRESS,
-      factory: ACCOUNT_FACTORY_PROXY_ADDRESS,
+      entryPoint: Utils.ENTRY_POINT_ADDRESS,
+      factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
       paymasterMiddlewareGenerator: pimlicoPaymasterGenerator,
       salt: aADeploySalt,
+      overrideBundlerEstimateRpc: ETHERSPOT_RPC_URL,
     };
     const imAccount = await ImAccount.init(
       signer,
@@ -594,7 +601,6 @@ export const UserOperation = () => {
     // 送交易前先更新前端 userOp 資訊
     setUserOp(formatUserOp(imBuilder.getOp()));
 
-    console.log(`1234567890`);
     // 估算完 gas 後，Signer 並對 userOp 簽名，最後將組合完成的 userOp 傳送給 Bundler
     let res, ev;
     try {
@@ -617,6 +623,7 @@ export const UserOperation = () => {
 
     // 在新一輪的交易完成後，先將上一次的 userOp 資訊清空
     setUserOpHash("");
+    setTransactionHash("");
 
     if (res) {
       // 向 Bundler 提出 eth_getUserOperationReceipt 請求，以取得 gas 資訊
@@ -632,7 +639,245 @@ export const UserOperation = () => {
     if (ev) {
       setTransactionHash(ev.transactionHash);
     }
-  }, [userOp, aAAccountAddress, tokenSymbol, toAddress, tokenAmount]);
+  }, [userOp, aADeploySalt, tokenSymbol, toAddress, tokenAmount, tokenDecimal]);
+
+  // --------------------------------------
+  // ---- Onboarding Paymaster 按鈕事件 ----
+  // -- 對 UserOp 簽名後傳送給 Bundler 上鏈 --
+  // --------- 用 USDC 換 ETH 交易 ---------
+  // --------------------------------------
+  const handleSwapUsdcToEthViaOnboarding = React.useCallback(async () => {
+    if (!window.ethereum) {
+      return;
+    }
+    // 因為這個函數是將 USDC 換成 ETH，所以要求使用者輸入明確的 USDC 數量
+    if (tokenSymbol !== "USDC") {
+      setError("Please select the USDC amount and try again.");
+      return;
+    }
+    setError("");
+
+    const provider = new Ethers5.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+
+    // 建立一個新的 ImAccount Via OnboardingPaymaster 實例
+    const onboardingPaymasterGenerator = new OnboardingPaymasterGenerator(
+      Utils.ONBOARDING_PAYMASTER_ADDRESS,
+      ONBOARDING_PAYMASTER_ACTIVETY_ID
+    );
+    const imAccountOpts: IBuilderOpts = {
+      entryPoint: Utils.ENTRY_POINT_ADDRESS,
+      factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
+      paymasterMiddlewareGenerator: onboardingPaymasterGenerator,
+      salt: aADeploySalt,
+      overrideBundlerEstimateRpc: ETHERSPOT_RPC_URL,
+    };
+    const imAccount = await ImAccount.init(
+      signer,
+      BUNDLER_RPC_URL,
+      imAccountOpts
+    );
+
+    // executeArgs1：Approve USDC 給 Uniswap Swap Router 合約
+    const executeArgs1: ExecuteArgs = {
+      dest: Ethers5.utils.getAddress(Utils.USDC_ADDRESS), // dest
+      value: Ethers5.BigNumber.from(0), // value
+      func: Ethers5.utils.arrayify(
+        Utils.UsdcApproveCalldata(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS)
+      ), // func
+    };
+
+    // executeArgs2：透過 Uniswap Swap Router 合約 Swap USDC to ETH
+    const executeArgs2: ExecuteArgs = {
+      dest: Ethers5.utils.getAddress(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS), // dest
+      value: Ethers5.BigNumber.from(0), // value
+      func: Ethers5.utils.arrayify(
+        Utils.UniswapSwapV2Calldata(
+          tokenAmount, // amountIn: uint256
+          Utils.USDC_ADDRESS,
+          Utils.WETH_ADDRESS,
+          imAccount.getSender() // to: address
+        )
+      ), // func
+    };
+
+    if (debug) {
+      // 查看 executeArgs 內容
+      console.log(
+        `executeArgs1: ${JSON.stringify(
+          executeArgs1
+        )}\nexecuteArgs2: ${JSON.stringify(executeArgs2)}`
+      );
+    }
+
+    // 使用 executeArgs 建立初始的 UserOp（無 gas 與 signature 內容）
+    const imBuilder: UserOp.IUserOperationBuilder = imAccount.executeBatch(
+      [executeArgs1.dest, executeArgs2.dest],
+      [executeArgs1.value, executeArgs2.value],
+      [executeArgs1.func, executeArgs2.func]
+    );
+
+    // 送交易前先更新前端 userOp 資訊
+    setUserOp(formatUserOp(imBuilder.getOp()));
+
+    // 估算完 gas 後，Signer 並對 userOp 簽名，最後將組合完成的 userOp 傳送給 Bundler
+    let res, ev;
+    try {
+      const client = await UserOp.Client.init(BUNDLER_RPC_URL);
+      // 簽名及送出交易給 Bundler
+      res = await client.sendUserOperation(imBuilder, {
+        onBuild: (op) => {
+          // 送交易中再更新一次實際上鏈的 userOp 資訊
+          setUserOp(formatUserOp(op));
+          console.log("Signed UserOperation:", op);
+        },
+      });
+      // 等待 Bundler 送出交易完成
+      ev = await res.wait();
+      // 清空錯誤訊息
+      setError("");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+
+    // 在新一輪的交易完成後，先將上一次的 userOp 資訊清空
+    setUserOpHash("");
+    setTransactionHash("");
+
+    if (res) {
+      // 向 Bundler 提出 eth_getUserOperationReceipt 請求，以取得 gas 資訊
+      const resUserOpReceipt = await Utils.bundlerUserOpReceipt(
+        BUNDLER_RPC_URL,
+        res.userOpHash
+      );
+      setUserOpHash(res.userOpHash);
+      setActualGasCost(Ethers5.BigNumber.from(resUserOpReceipt.actualGasCost));
+      setActualGasUsed(Ethers5.BigNumber.from(resUserOpReceipt.actualGasUsed));
+    }
+
+    if (ev) {
+      setTransactionHash(ev.transactionHash);
+    }
+  }, [userOp, aADeploySalt, tokenSymbol, toAddress, tokenAmount, tokenDecimal]);
+
+  // --------------------------------------
+  // ------ Pimlico Paymaster 按鈕事件 ------
+  // -- 對 UserOp 簽名後傳送給 Bundler 上鏈 --
+  // ---------- 用 USDC 換 ETH 交易 ----------
+  // --------------------------------------
+  const handleSwapUsdcToEthViaPimlico = React.useCallback(async () => {
+    if (!window.ethereum) {
+      return;
+    }
+    // 因為這個函數是將 USDC 換成 ETH，所以要求使用者輸入明確的 USDC 數量
+    if (tokenSymbol !== "USDC") {
+      setError("Please select the USDC amount and try again.");
+      return;
+    }
+    setError("");
+
+    const provider = new Ethers5.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+
+    // 建立一個新的 ImAccount Via PimlicoPaymaster 實例
+    const pimlicoPaymasterGenerator = new PimlicoPaymasterGenerator(
+      provider,
+      Utils.PIMLICO_PAYMASTER_ADDRESS
+    );
+    const imAccountOpts: IBuilderOpts = {
+      entryPoint: Utils.ENTRY_POINT_ADDRESS,
+      factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
+      paymasterMiddlewareGenerator: pimlicoPaymasterGenerator,
+      salt: aADeploySalt,
+      overrideBundlerEstimateRpc: ETHERSPOT_RPC_URL,
+    };
+    const imAccount = await ImAccount.init(
+      signer,
+      BUNDLER_RPC_URL,
+      imAccountOpts
+    );
+
+    // executeArgs1：Approve USDC 給 Uniswap Swap Router 合約
+    const executeArgs1: ExecuteArgs = {
+      dest: Ethers5.utils.getAddress(Utils.USDC_ADDRESS), // dest
+      value: Ethers5.BigNumber.from(0), // value
+      func: Ethers5.utils.arrayify(
+        Utils.UsdcApproveCalldata(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS)
+      ), // func
+    };
+
+    // executeArgs2：透過 Uniswap Swap Router 合約 Swap USDC to ETH
+    const executeArgs2: ExecuteArgs = {
+      dest: Ethers5.utils.getAddress(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS), // dest
+      value: Ethers5.BigNumber.from(0), // value
+      func: Ethers5.utils.arrayify(
+        Utils.UniswapSwapV2Calldata(
+          tokenAmount, // amountIn: uint256
+          Utils.USDC_ADDRESS,
+          Utils.WETH_ADDRESS,
+          imAccount.getSender() // to: address
+        )
+      ), // func
+    };
+
+    if (debug) {
+      // 查看 executeArgs 內容
+      console.log(
+        `executeArgs1: ${JSON.stringify(
+          executeArgs1
+        )}\nexecuteArgs2: ${JSON.stringify(executeArgs2)}`
+      );
+    }
+
+    // 使用 executeArgs 建立初始的 UserOp（無 gas 與 signature 內容）
+    const imBuilder: UserOp.IUserOperationBuilder = imAccount.executeBatch(
+      [executeArgs1.dest, executeArgs2.dest],
+      [executeArgs1.value, executeArgs2.value],
+      [executeArgs1.func, executeArgs2.func]
+    );
+
+    // 送交易前先更新前端 userOp 資訊
+    setUserOp(formatUserOp(imBuilder.getOp()));
+
+    // 估算完 gas 後，Signer 並對 userOp 簽名，最後將組合完成的 userOp 傳送給 Bundler
+    let res, ev;
+    try {
+      const client = await UserOp.Client.init(BUNDLER_RPC_URL);
+      // 簽名及送出交易給 Bundler
+      res = await client.sendUserOperation(imBuilder, {
+        onBuild: (op) => {
+          // 送交易中再更新一次實際上鏈的 userOp 資訊
+          setUserOp(formatUserOp(op));
+          console.log("Signed UserOperation:", op);
+        },
+      });
+      // 等待 Bundler 送出交易完成
+      ev = await res.wait();
+      // 清空錯誤訊息
+      setError("");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+
+    // 在新一輪的交易完成後，先將上一次的 userOp 資訊清空
+    setUserOpHash("");
+    setTransactionHash("");
+
+    if (res) {
+      // 向 Bundler 提出 eth_getUserOperationReceipt 請求，以取得 gas 資訊
+      const resUserOpReceipt = await Utils.bundlerUserOpReceipt(
+        BUNDLER_RPC_URL,
+        res.userOpHash
+      );
+      setUserOpHash(res.userOpHash);
+      setActualGasCost(Ethers5.BigNumber.from(resUserOpReceipt.actualGasCost));
+      setActualGasUsed(Ethers5.BigNumber.from(resUserOpReceipt.actualGasUsed));
+    }
+
+    if (ev) {
+      setTransactionHash(ev.transactionHash);
+    }
+  }, [userOp, aADeploySalt, tokenSymbol, toAddress, tokenAmount, tokenDecimal]);
 
   // ---------------------------------------------
   // ------------- React 改變更新事件 -------------
@@ -659,172 +904,231 @@ export const UserOperation = () => {
 
   // 當使用者輸入新的 Token、To、Amount 值時，更新對應的 React Hook：tokenSymbol、toAddress、tokenAmount 內容
   // 當使用者輸入新的 UserOp 值時，更新 Hook：aADeploySalt 內容
-  const handleUserOpFormChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { id, value } = event.target;
-    try {
-      switch (id) {
-        case "tokenSymbol":
-          try {
+  const handleUserOpAndTokenFormChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const { id, value } = event.target;
+      try {
+        switch (id) {
+          case "tokenSymbol":
             setTokenSymbol(value.toString());
             if (value.toString() === "ETH") {
-              setTokenAmount(Ethers5.BigNumber.from("1000000000000000000"));
+              setTokenAmount(Ethers5.BigNumber.from("100000000000000000"));
+              setTokenDecimal(18);
             }
             if (value.toString() === "USDC") {
-              setTokenAmount(Ethers5.BigNumber.from(1000000));
+              setTokenAmount(Ethers5.BigNumber.from(100000));
+              setTokenDecimal(6);
             }
             setError("");
-          } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err));
-          }
-          break;
-        case "toAddress":
-          try {
+            break;
+          case "toAddress":
             setToAddress(Ethers5.utils.getAddress(value));
             setError("");
-          } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err));
-          }
-          break;
-        case "tokenAmount":
-          try {
-            setTokenAmount(Ethers5.BigNumber.from(value));
+            break;
+          case "tokenAmount":
+            const realAmount = Ethers5.utils.parseUnits(value, tokenDecimal);
+            setTokenAmount(realAmount);
+            console.log(`RealAmount: ${realAmount}`);
             setError("");
-          } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err));
-          }
-          break;
-        case "sender":
-          try {
+            break;
+          case "sender":
             setUserOp({
               ...userOp,
               sender: Ethers5.utils.getAddress(value),
             });
             setError("");
-          } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err));
-          }
-          break;
-        case "nonce":
-          try {
+            break;
+          case "nonce":
             setUserOp({
               ...userOp,
               nonce: Ethers5.BigNumber.from(value),
             });
             setError("");
-          } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err));
-          }
-          break;
-        case "initCode":
-          try {
+            break;
+          case "initCode":
             setUserOp({
               ...userOp,
               initCode: Ethers5.utils.hexlify(value),
             });
             setError("");
-          } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err));
-          }
-          break;
-        case "callData":
-          try {
+            break;
+          case "callData":
             setUserOp({
               ...userOp,
               callData: Ethers5.utils.hexlify(value),
             });
             setError("");
-          } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err));
-          }
-          break;
-        case "callGasLimit":
-          try {
+            break;
+          case "callGasLimit":
             setUserOp({
               ...userOp,
               callGasLimit: Ethers5.BigNumber.from(value),
             });
             setError("");
-          } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err));
-          }
-          break;
-        case "verificationGasLimit":
-          try {
+            break;
+          case "verificationGasLimit":
             setUserOp({
               ...userOp,
               verificationGasLimit: Ethers5.BigNumber.from(value),
             });
             setError("");
-          } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err));
-          }
-          break;
-        case "preVerificationGas":
-          try {
+            break;
+          case "preVerificationGas":
             setUserOp({
               ...userOp,
               preVerificationGas: Ethers5.BigNumber.from(value),
             });
             setError("");
-          } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err));
-          }
-          break;
-        case "maxFeePerGas":
-          try {
+            break;
+          case "maxFeePerGas":
             setUserOp({
               ...userOp,
               maxFeePerGas: Ethers5.BigNumber.from(value),
             });
             setError("");
-          } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err));
-          }
-          break;
-        case "maxPriorityFeePerGas":
-          try {
+            break;
+          case "maxPriorityFeePerGas":
             setUserOp({
               ...userOp,
               maxPriorityFeePerGas: Ethers5.BigNumber.from(value),
             });
             setError("");
-          } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err));
-          }
-          break;
-        case "paymasterAndData":
-          try {
+            break;
+          case "paymasterAndData":
             setUserOp({
               ...userOp,
               paymasterAndData: Ethers5.utils.hexlify(value),
             });
             setError("");
-          } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err));
-          }
-          break;
-        case "signature":
-          try {
+            break;
+          case "signature":
             setUserOp({
               ...userOp,
               signature: Ethers5.utils.hexlify(value),
             });
             setError("");
-          } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err));
-          }
-          break;
-        default:
-          break;
+            break;
+          default:
+            break;
+        }
+        setError(""); // 清除先前的錯誤訊息
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : String(err)); // 設置錯誤訊息狀態
       }
-      setError(""); // 清除先前的錯誤訊息
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err)); // 設置錯誤訊息狀態
-      return;
-    }
-  };
+    },
+    [tokenSymbol, toAddress, tokenAmount, tokenDecimal]
+  );
+  // const handleUserOpAndTokenFormChange = (
+  //   event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  // ) => {
+  //   const { id, value } = event.target;
+  //   try {
+  //     switch (id) {
+  //       case "tokenSymbol":
+  //         setTokenSymbol(value.toString());
+  //         if (value.toString() === "ETH") {
+  //           setTokenAmount(Ethers5.BigNumber.from("100000000000000000"));
+  //           setDecimal(18);
+  //         }
+  //         if (value.toString() === "USDC") {
+  //           setTokenAmount(Ethers5.BigNumber.from(100000));
+  //           setDecimal(6);
+  //         }
+  //         setError("");
+  //         break;
+  //       case "toAddress":
+  //         setToAddress(Ethers5.utils.getAddress(value));
+  //         setError("");
+  //         break;
+  //       case "tokenAmount":
+  //         setTokenAmount(Ethers5.BigNumber.from(value));
+  //         setError("");
+  //         break;
+  //       case "sender":
+  //         setUserOp({
+  //           ...userOp,
+  //           sender: Ethers5.utils.getAddress(value),
+  //         });
+  //         setError("");
+  //         break;
+  //       case "nonce":
+  //         setUserOp({
+  //           ...userOp,
+  //           nonce: Ethers5.BigNumber.from(value),
+  //         });
+  //         setError("");
+  //         break;
+  //       case "initCode":
+  //         setUserOp({
+  //           ...userOp,
+  //           initCode: Ethers5.utils.hexlify(value),
+  //         });
+  //         setError("");
+  //         break;
+  //       case "callData":
+  //         setUserOp({
+  //           ...userOp,
+  //           callData: Ethers5.utils.hexlify(value),
+  //         });
+  //         setError("");
+  //         break;
+  //       case "callGasLimit":
+  //         setUserOp({
+  //           ...userOp,
+  //           callGasLimit: Ethers5.BigNumber.from(value),
+  //         });
+  //         setError("");
+  //         break;
+  //       case "verificationGasLimit":
+  //         setUserOp({
+  //           ...userOp,
+  //           verificationGasLimit: Ethers5.BigNumber.from(value),
+  //         });
+  //         setError("");
+  //         break;
+  //       case "preVerificationGas":
+  //         setUserOp({
+  //           ...userOp,
+  //           preVerificationGas: Ethers5.BigNumber.from(value),
+  //         });
+  //         setError("");
+  //         break;
+  //       case "maxFeePerGas":
+  //         setUserOp({
+  //           ...userOp,
+  //           maxFeePerGas: Ethers5.BigNumber.from(value),
+  //         });
+  //         setError("");
+  //         break;
+  //       case "maxPriorityFeePerGas":
+  //         setUserOp({
+  //           ...userOp,
+  //           maxPriorityFeePerGas: Ethers5.BigNumber.from(value),
+  //         });
+  //         setError("");
+  //         break;
+  //       case "paymasterAndData":
+  //         setUserOp({
+  //           ...userOp,
+  //           paymasterAndData: Ethers5.utils.hexlify(value),
+  //         });
+  //         setError("");
+  //         break;
+  //       case "signature":
+  //         setUserOp({
+  //           ...userOp,
+  //           signature: Ethers5.utils.hexlify(value),
+  //         });
+  //         setError("");
+  //         break;
+  //       default:
+  //         break;
+  //     }
+  //     setError(""); // 清除先前的錯誤訊息
+  //   } catch (err: unknown) {
+  //     setError(err instanceof Error ? err.message : String(err)); // 設置錯誤訊息狀態
+  //   }
+  // };
 
   const formMetaMask = () => {
     return (
@@ -852,11 +1156,15 @@ export const UserOperation = () => {
               </tr>
               <tr>
                 <td>Balance(ETH):</td>
-                <td>{metamaskBalanceEth.toString()}</td>
+                <td>
+                  {Ethers5.utils.formatUnits(metamaskBalanceEth, 18).toString()}
+                </td>
               </tr>
               <tr>
                 <td>Balance(USDC):</td>
-                <td>{metamaskBalanceUsdc.toString()}</td>
+                <td>
+                  {Ethers5.utils.formatUnits(metamaskBalanceUsdc, 6).toString()}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -903,28 +1211,40 @@ export const UserOperation = () => {
           <table>
             <tbody>
               <tr>
-                <td>AA_Address:</td>
+                <td>AA Account Address:</td>
                 <td>{aAAccountAddress.toString()}</td>
               </tr>
               <tr>
-                <td>AA_Nonce:</td>
+                <td>AA Account Nonce:</td>
                 <td>{`Key[${Utils.decodeAANonce(
                   aANonce
                 ).key.toString()}] = ${Utils.decodeAANonce(
                   aANonce
-                ).seq.toString()} = Seq`}</td>
+                ).seq.toString()} = Seq (Free Quota = ${Ethers5.BigNumber.from(
+                  aAOnboardingFreeQuota
+                )
+                  .sub(Utils.decodeAANonce(aANonce).seq)
+                  .toString()})`}</td>
               </tr>
               <tr>
-                <td>Balance(ETH):</td>
-                <td>{aABalanceEth.toString()}</td>
+                <td>Account Balance(ETH):</td>
+                <td>
+                  {Ethers5.utils.formatUnits(aABalanceEth, 18).toString()}
+                </td>
               </tr>
               <tr>
-                <td>Balance(USDC):</td>
-                <td>{aABalanceUsdc.toString()}</td>
+                <td>Account Balance(USDC):</td>
+                <td>
+                  {Ethers5.utils.formatUnits(aABalanceUsdc, 6).toString()}
+                </td>
               </tr>
               <tr>
                 <td>Balance(ETH) in EntryPoint:</td>
-                <td>{aABalanceEthInEntryPoint.toString()}</td>
+                <td>
+                  {Ethers5.utils
+                    .formatUnits(aABalanceEthInEntryPoint, 18)
+                    .toString()}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -945,12 +1265,13 @@ export const UserOperation = () => {
                   <select
                     id="tokenSymbol"
                     value={`${tokenSymbol}`}
-                    onChange={handleUserOpFormChange}
+                    onChange={handleUserOpAndTokenFormChange}
                   >
                     <option value="ETH">ETH</option>
                     <option value="USDC">USDC</option>
                   </select>
                 </td>
+                <td></td>
               </tr>
               <tr>
                 <td>To:</td>
@@ -959,9 +1280,10 @@ export const UserOperation = () => {
                     type="text"
                     id="toAddress"
                     value={`${toAddress}`}
-                    onChange={handleUserOpFormChange}
+                    onChange={handleUserOpAndTokenFormChange}
                   />
                 </td>
+                <td>Or the Account itself when swapping USDC to ETH</td>
               </tr>
               <tr>
                 <td>Amount:</td>
@@ -969,10 +1291,14 @@ export const UserOperation = () => {
                   <input
                     type="text"
                     id="tokenAmount"
-                    value={`${tokenAmount}`}
-                    onChange={handleUserOpFormChange}
+                    value={`${Ethers5.utils.formatUnits(
+                      tokenAmount,
+                      tokenDecimal
+                    )}`}
+                    onChange={handleUserOpAndTokenFormChange}
                   />
                 </td>
+                <td></td>
               </tr>
             </tbody>
           </table>
@@ -982,6 +1308,12 @@ export const UserOperation = () => {
             </button>
             <button onClick={() => handleSigTransactionViaPimlico()}>
               Sign ETH/USDC transaction via PimlicoPaymaster
+            </button>
+            <button onClick={() => handleSwapUsdcToEthViaOnboarding()}>
+              Swap USDC to ETH transaction via OnboardingPaymaster
+            </button>
+            <button onClick={() => handleSwapUsdcToEthViaPimlico()}>
+              Swap USDC to ETH transaction via PimlicoPaymaster
             </button>
           </div>
         </div>
@@ -1055,7 +1387,7 @@ export const UserOperation = () => {
                         type="text"
                         id="sender"
                         value={`${userOp.sender}`}
-                        onChange={handleUserOpFormChange}
+                        onChange={handleUserOpAndTokenFormChange}
                         disabled={true}
                       />
                     </td>
@@ -1068,7 +1400,7 @@ export const UserOperation = () => {
                         type="text"
                         id="nonce"
                         value={`${userOp.nonce}`}
-                        onChange={handleUserOpFormChange}
+                        onChange={handleUserOpAndTokenFormChange}
                         disabled={true}
                       />
                     </td>
@@ -1087,7 +1419,7 @@ export const UserOperation = () => {
                         type="text"
                         id="initCode"
                         value={`${userOp.initCode}`}
-                        onChange={handleUserOpFormChange}
+                        onChange={handleUserOpAndTokenFormChange}
                         disabled={true}
                       />
                     </td>
@@ -1100,7 +1432,7 @@ export const UserOperation = () => {
                         type="text"
                         id="callData"
                         value={`${userOp.callData}`}
-                        onChange={handleUserOpFormChange}
+                        onChange={handleUserOpAndTokenFormChange}
                         disabled={true}
                       />
                     </td>
@@ -1113,7 +1445,7 @@ export const UserOperation = () => {
                         type="text"
                         id="callGasLimit"
                         value={`${userOp.callGasLimit}`}
-                        onChange={handleUserOpFormChange}
+                        onChange={handleUserOpAndTokenFormChange}
                         disabled={true}
                       />
                     </td>
@@ -1126,7 +1458,7 @@ export const UserOperation = () => {
                         type="text"
                         id="verificationGasLimit"
                         value={`${userOp.verificationGasLimit}`}
-                        onChange={handleUserOpFormChange}
+                        onChange={handleUserOpAndTokenFormChange}
                         disabled={true}
                       />
                     </td>
@@ -1139,7 +1471,7 @@ export const UserOperation = () => {
                         type="text"
                         id="preVerificationGas"
                         value={`${userOp.preVerificationGas}`}
-                        onChange={handleUserOpFormChange}
+                        onChange={handleUserOpAndTokenFormChange}
                         disabled={true}
                       />
                     </td>
@@ -1152,7 +1484,7 @@ export const UserOperation = () => {
                         type="text"
                         id="maxFeePerGas"
                         value={`${userOp.maxFeePerGas}`}
-                        onChange={handleUserOpFormChange}
+                        onChange={handleUserOpAndTokenFormChange}
                         disabled={true}
                       />
                     </td>
@@ -1165,7 +1497,7 @@ export const UserOperation = () => {
                         type="text"
                         id="maxPriorityFeePerGas"
                         value={`${userOp.maxPriorityFeePerGas}`}
-                        onChange={handleUserOpFormChange}
+                        onChange={handleUserOpAndTokenFormChange}
                         disabled={true}
                       />
                     </td>
@@ -1178,7 +1510,7 @@ export const UserOperation = () => {
                         type="text"
                         id="paymasterAndData"
                         value={`${userOp.paymasterAndData}`}
-                        onChange={handleUserOpFormChange}
+                        onChange={handleUserOpAndTokenFormChange}
                         disabled={true}
                       />
                     </td>
@@ -1191,7 +1523,7 @@ export const UserOperation = () => {
                         type="text"
                         id="signature"
                         value={`${userOp.signature}`}
-                        onChange={handleUserOpFormChange}
+                        onChange={handleUserOpAndTokenFormChange}
                         disabled={true}
                       />
                     </td>
