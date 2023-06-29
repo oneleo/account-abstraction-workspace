@@ -59,6 +59,13 @@
     height: 20px;
   }
 
+  table {
+    border-collapse: collapse;
+    table-layout: auto;
+    margin: 10px;
+    text-align: left;
+  }
+
   select {
     width: 150px;
     height: 20px;
