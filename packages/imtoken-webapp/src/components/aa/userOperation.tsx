@@ -38,7 +38,7 @@ const BUNDLER_RPC_URL = "http://bundler.dev.rivo.network/unsafe/rpc"; // Stackup
 
 const DEFAULT_REACT_USESTATE_PARAMS = {
   tokenAmount: 100000, // 1000000,
-  salt: 1234567890, // 999666333,
+  salt: 9876543210, // 999666333, 1234567890,
 };
 
 // 欲請 Account 執行的指令
@@ -73,10 +73,6 @@ export const UserOperation = () => {
   const [isUserOpVisible, setIsUserOpVisible] = React.useState(false);
   const [userOpHash, setUserOpHash] = React.useState<string>("");
   const [transactionHash, setTransactionHash] = React.useState<string>("");
-  const [actualGasCost, setActualGasCost] =
-    React.useState<Ethers5.BigNumberish>(Ethers5.BigNumber.from("0"));
-  const [actualGasUsed, setActualGasUsed] =
-    React.useState<Ethers5.BigNumberish>(Ethers5.BigNumber.from("0"));
 
   // Token State
   const [tokenSymbol, setTokenSymbol] = React.useState<string>("USDC");
@@ -381,18 +377,24 @@ export const UserOperation = () => {
     }
 
     if (res) {
-      // 向 Bundler 提出 eth_getUserOperationReceipt 請求，以取得 gas 資訊
-      const resUserOpReceipt = await Utils.bundlerUserOpReceipt(
-        BUNDLER_RPC_URL,
-        res.userOpHash
-      );
-      setUserOpHash(res.userOpHash);
-      setActualGasCost(Ethers5.BigNumber.from(resUserOpReceipt.actualGasCost));
-      setActualGasUsed(Ethers5.BigNumber.from(resUserOpReceipt.actualGasUsed));
-    }
-
-    if (ev) {
-      setTransactionHash(ev.transactionHash);
+      if (res.userOpHash) {
+        // 設置 userOpHash
+        setUserOpHash(res.userOpHash);
+      }
+      // 給予 3 次 await res 的機會
+      for (let checkTime = 3; checkTime > 0; checkTime--) {
+        if (ev) {
+          if (ev.transactionHash) {
+            // 設置 transactionHash
+            setTransactionHash(ev.transactionHash);
+            break;
+          }
+        }
+        if (!ev) {
+          ev = await res.wait();
+        }
+        console.log(`checkTime: ${checkTime}`);
+      }
     }
   }, [metamaskAddress, aADeploySalt]);
 
@@ -500,18 +502,24 @@ export const UserOperation = () => {
     }
 
     if (res) {
-      // 向 Bundler 提出 eth_getUserOperationReceipt 請求，以取得 gas 資訊
-      const resUserOpReceipt = await Utils.bundlerUserOpReceipt(
-        BUNDLER_RPC_URL,
-        res.userOpHash
-      );
-      setUserOpHash(res.userOpHash);
-      setActualGasCost(Ethers5.BigNumber.from(resUserOpReceipt.actualGasCost));
-      setActualGasUsed(Ethers5.BigNumber.from(resUserOpReceipt.actualGasUsed));
-    }
-
-    if (ev) {
-      setTransactionHash(ev.transactionHash);
+      if (res.userOpHash) {
+        // 設置 userOpHash
+        setUserOpHash(res.userOpHash);
+      }
+      // 給予 3 次 await res 的機會
+      for (let checkTime = 3; checkTime > 0; checkTime--) {
+        if (ev) {
+          if (ev.transactionHash) {
+            // 設置 transactionHash
+            setTransactionHash(ev.transactionHash);
+            break;
+          }
+        }
+        if (!ev) {
+          ev = await res.wait();
+        }
+        console.log(`checkTime: ${checkTime}`);
+      }
     }
   }, [userOp, aADeploySalt, tokenSymbol, toAddress, tokenAmount, tokenDecimal]);
 
@@ -622,18 +630,24 @@ export const UserOperation = () => {
     }
 
     if (res) {
-      // 向 Bundler 提出 eth_getUserOperationReceipt 請求，以取得 gas 資訊
-      const resUserOpReceipt = await Utils.bundlerUserOpReceipt(
-        BUNDLER_RPC_URL,
-        res.userOpHash
-      );
-      setUserOpHash(res.userOpHash);
-      setActualGasCost(Ethers5.BigNumber.from(resUserOpReceipt.actualGasCost));
-      setActualGasUsed(Ethers5.BigNumber.from(resUserOpReceipt.actualGasUsed));
-    }
-
-    if (ev) {
-      setTransactionHash(ev.transactionHash);
+      if (res.userOpHash) {
+        // 設置 userOpHash
+        setUserOpHash(res.userOpHash);
+      }
+      // 給予 3 次 await res 的機會
+      for (let checkTime = 3; checkTime > 0; checkTime--) {
+        if (ev) {
+          if (ev.transactionHash) {
+            // 設置 transactionHash
+            setTransactionHash(ev.transactionHash);
+            break;
+          }
+        }
+        if (!ev) {
+          ev = await res.wait();
+        }
+        console.log(`checkTime: ${checkTime}`);
+      }
     }
   }, [userOp, aADeploySalt, tokenSymbol, toAddress, tokenAmount, tokenDecimal]);
 
@@ -739,18 +753,24 @@ export const UserOperation = () => {
     }
 
     if (res) {
-      // 向 Bundler 提出 eth_getUserOperationReceipt 請求，以取得 gas 資訊
-      const resUserOpReceipt = await Utils.bundlerUserOpReceipt(
-        BUNDLER_RPC_URL,
-        res.userOpHash
-      );
-      setUserOpHash(res.userOpHash);
-      setActualGasCost(Ethers5.BigNumber.from(resUserOpReceipt.actualGasCost));
-      setActualGasUsed(Ethers5.BigNumber.from(resUserOpReceipt.actualGasUsed));
-    }
-
-    if (ev) {
-      setTransactionHash(ev.transactionHash);
+      if (res.userOpHash) {
+        // 設置 userOpHash
+        setUserOpHash(res.userOpHash);
+      }
+      // 給予 3 次 await res 的機會
+      for (let checkTime = 3; checkTime > 0; checkTime--) {
+        if (ev) {
+          if (ev.transactionHash) {
+            // 設置 transactionHash
+            setTransactionHash(ev.transactionHash);
+            break;
+          }
+        }
+        if (!ev) {
+          ev = await res.wait();
+        }
+        console.log(`checkTime: ${checkTime}`);
+      }
     }
   }, [userOp, aADeploySalt, tokenSymbol, toAddress, tokenAmount, tokenDecimal]);
 
@@ -856,18 +876,24 @@ export const UserOperation = () => {
     }
 
     if (res) {
-      // 向 Bundler 提出 eth_getUserOperationReceipt 請求，以取得 gas 資訊
-      const resUserOpReceipt = await Utils.bundlerUserOpReceipt(
-        BUNDLER_RPC_URL,
-        res.userOpHash
-      );
-      setUserOpHash(res.userOpHash);
-      setActualGasCost(Ethers5.BigNumber.from(resUserOpReceipt.actualGasCost));
-      setActualGasUsed(Ethers5.BigNumber.from(resUserOpReceipt.actualGasUsed));
-    }
-
-    if (ev) {
-      setTransactionHash(ev.transactionHash);
+      if (res.userOpHash) {
+        // 設置 userOpHash
+        setUserOpHash(res.userOpHash);
+      }
+      // 給予 3 次 await res 的機會
+      for (let checkTime = 3; checkTime > 0; checkTime--) {
+        if (ev) {
+          if (ev.transactionHash) {
+            // 設置 transactionHash
+            setTransactionHash(ev.transactionHash);
+            break;
+          }
+        }
+        if (!ev) {
+          ev = await res.wait();
+        }
+        console.log(`checkTime: ${checkTime}`);
+      }
     }
   }, [userOp, aADeploySalt, tokenSymbol, toAddress, tokenAmount, tokenDecimal]);
 
@@ -880,8 +906,11 @@ export const UserOperation = () => {
   const handleAADeploySaltChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    // 清空錯誤訊息
+    // 清空 userOpHash 及 error 資訊
+    setUserOpHash("");
+    setTransactionHash("");
     setError("");
+
     // 更新 React Hook：aADeploySalt
     const { id, value } = event.target;
     switch (id) {
@@ -1086,7 +1115,7 @@ export const UserOperation = () => {
                     type="button"
                     onClick={() => handleDeployAccount()}
                   >
-                    Deploy a AA Account
+                    Deploy an Account via Onboarding
                   </button>
                 </td>
               </tr>
@@ -1217,15 +1246,19 @@ export const UserOperation = () => {
         <div className="transfer-gas-form">
           <table>
             <tbody>
-              <tr>
-                <td>TransactionHash:</td>
-                <td>
-                  <a
-                    href={`https://goerli.etherscan.io/tx/${transactionHash}`}
-                    target="_blank"
-                  >{`${transactionHash}`}</a>
-                </td>
-              </tr>
+              {transactionHash && (
+                <>
+                  <tr>
+                    <td>TransactionHash:</td>
+                    <td>
+                      <a
+                        href={`https://goerli.etherscan.io/tx/${transactionHash}`}
+                        target="_blank"
+                      >{`${transactionHash}`}</a>
+                    </td>
+                  </tr>
+                </>
+              )}
               <tr>
                 <td>userOpHash:</td>
                 <td>{`${userOpHash}`}</td>
@@ -1243,14 +1276,6 @@ export const UserOperation = () => {
                     target="_blank"
                   >{`Jiffyscan`}</a>
                 </td>
-              </tr>
-              <tr>
-                <td>actualGasUsed:</td>
-                <td>{`${actualGasUsed.toString()}`}</td>
-              </tr>
-              <tr>
-                <td>actualGasCost:</td>
-                <td>{`${actualGasCost.toString()} WEI`}</td>
               </tr>
             </tbody>
           </table>
