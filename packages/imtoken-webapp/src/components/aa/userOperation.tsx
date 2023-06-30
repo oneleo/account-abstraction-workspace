@@ -319,7 +319,7 @@ export const UserOperation = () => {
       dest: Ethers5.utils.getAddress(Utils.USDC_ADDRESS), // dest
       value: Ethers5.BigNumber.from(0), // value
       func: Ethers5.utils.arrayify(
-        Utils.UsdcApproveCalldata(Utils.PIMLICO_PAYMASTER_ADDRESS)
+        Utils.usdcApproveCalldata(Utils.PIMLICO_PAYMASTER_ADDRESS)
       ), // func
     };
     if (debug) {
@@ -337,8 +337,8 @@ export const UserOperation = () => {
       factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
       paymasterMiddlewareGenerator: onboardingPaymasterGenerator,
       salt: aADeploySalt,
-      // overrideBundlerEstimateRpc: ETHERSPOT_RPC_URL,
-      useOriginMaxFeePerGasToEstimate: true,
+      overrideBundlerEstimateRpc: ETHERSPOT_RPC_URL,
+      // useOriginMaxFeePerGasToEstimate: true,
     };
     const imAccount = await ImAccount.init(
       signer,
@@ -352,8 +352,14 @@ export const UserOperation = () => {
       [executeArgs.value],
       [executeArgs.func]
     );
-    // 送交易前先更新前端 userOp 資訊
+
+    // 送交易前，先更新前端 userOp 資訊
     setUserOp(formatUserOp(imBuilder.getOp()));
+
+    // 送交易前，先將上一次的 userOpHash 及 error 資訊清空
+    setUserOpHash("");
+    setTransactionHash("");
+    setError("");
 
     // 估算完 gas 後，Signer 並對 userOp 簽名，最後將組合完成的 userOp 傳送給 Bundler
     let res, ev;
@@ -370,15 +376,9 @@ export const UserOperation = () => {
       });
       // 等待 Bundler 送出交易完成
       ev = await res.wait();
-      // 清空錯誤訊息
-      setError("");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     }
-
-    // 在新一輪的交易完成後，先將上一次的 userOp 資訊清空
-    setUserOpHash("");
-    setTransactionHash("");
 
     if (res) {
       // 向 Bundler 提出 eth_getUserOperationReceipt 請求，以取得 gas 資訊
@@ -405,7 +405,6 @@ export const UserOperation = () => {
     if (!window.ethereum) {
       return;
     }
-    setError("");
 
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
     const signer = provider.getSigner();
@@ -474,8 +473,13 @@ export const UserOperation = () => {
       [executeArgs.func]
     );
 
-    // 送交易前先更新前端 userOp 資訊
+    // 送交易前，先更新前端 userOp 資訊
     setUserOp(formatUserOp(imBuilder.getOp()));
+
+    // 送交易前，先將上一次的 userOpHash 及 error 資訊清空
+    setUserOpHash("");
+    setTransactionHash("");
+    setError("");
 
     // 估算完 gas 後，Signer 並對 userOp 簽名，最後將組合完成的 userOp 傳送給 Bundler
     let res, ev;
@@ -491,15 +495,9 @@ export const UserOperation = () => {
       });
       // 等待 Bundler 送出交易完成
       ev = await res.wait();
-      // 清空錯誤訊息
-      setError("");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     }
-
-    // 在新一輪的交易完成後，先將上一次的 userOp 資訊清空
-    setUserOpHash("");
-    setTransactionHash("");
 
     if (res) {
       // 向 Bundler 提出 eth_getUserOperationReceipt 請求，以取得 gas 資訊
@@ -529,7 +527,6 @@ export const UserOperation = () => {
     if (!window.ethereum) {
       return;
     }
-    setError("");
 
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
     const signer = provider.getSigner();
@@ -598,8 +595,13 @@ export const UserOperation = () => {
       [executeArgs.func]
     );
 
-    // 送交易前先更新前端 userOp 資訊
+    // 送交易前，先更新前端 userOp 資訊
     setUserOp(formatUserOp(imBuilder.getOp()));
+
+    // 送交易前，先將上一次的 userOpHash 及 error 資訊清空
+    setUserOpHash("");
+    setTransactionHash("");
+    setError("");
 
     // 估算完 gas 後，Signer 並對 userOp 簽名，最後將組合完成的 userOp 傳送給 Bundler
     let res, ev;
@@ -615,15 +617,9 @@ export const UserOperation = () => {
       });
       // 等待 Bundler 送出交易完成
       ev = await res.wait();
-      // 清空錯誤訊息
-      setError("");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     }
-
-    // 在新一輪的交易完成後，先將上一次的 userOp 資訊清空
-    setUserOpHash("");
-    setTransactionHash("");
 
     if (res) {
       // 向 Bundler 提出 eth_getUserOperationReceipt 請求，以取得 gas 資訊
@@ -655,7 +651,6 @@ export const UserOperation = () => {
       setError("Please select the USDC amount and try again.");
       return;
     }
-    setError("");
 
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
     const signer = provider.getSigner();
@@ -683,7 +678,7 @@ export const UserOperation = () => {
       dest: Ethers5.utils.getAddress(Utils.USDC_ADDRESS), // dest
       value: Ethers5.BigNumber.from(0), // value
       func: Ethers5.utils.arrayify(
-        Utils.UsdcApproveCalldata(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS)
+        Utils.usdcApproveCalldata(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS)
       ), // func
     };
 
@@ -692,7 +687,7 @@ export const UserOperation = () => {
       dest: Ethers5.utils.getAddress(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS), // dest
       value: Ethers5.BigNumber.from(0), // value
       func: Ethers5.utils.arrayify(
-        Utils.UniswapSwapV2Calldata(
+        Utils.uniswapSwapV2Calldata(
           tokenAmount, // amountIn: uint256
           Utils.USDC_ADDRESS,
           Utils.WETH_ADDRESS,
@@ -717,8 +712,13 @@ export const UserOperation = () => {
       [executeArgs1.func, executeArgs2.func]
     );
 
-    // 送交易前先更新前端 userOp 資訊
+    // 送交易前，先更新前端 userOp 資訊
     setUserOp(formatUserOp(imBuilder.getOp()));
+
+    // 送交易前，先將上一次的 userOpHash 及 error 資訊清空
+    setUserOpHash("");
+    setTransactionHash("");
+    setError("");
 
     // 估算完 gas 後，Signer 並對 userOp 簽名，最後將組合完成的 userOp 傳送給 Bundler
     let res, ev;
@@ -734,15 +734,9 @@ export const UserOperation = () => {
       });
       // 等待 Bundler 送出交易完成
       ev = await res.wait();
-      // 清空錯誤訊息
-      setError("");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     }
-
-    // 在新一輪的交易完成後，先將上一次的 userOp 資訊清空
-    setUserOpHash("");
-    setTransactionHash("");
 
     if (res) {
       // 向 Bundler 提出 eth_getUserOperationReceipt 請求，以取得 gas 資訊
@@ -774,7 +768,6 @@ export const UserOperation = () => {
       setError("Please select the USDC amount and try again.");
       return;
     }
-    setError("");
 
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
     const signer = provider.getSigner();
@@ -802,7 +795,7 @@ export const UserOperation = () => {
       dest: Ethers5.utils.getAddress(Utils.USDC_ADDRESS), // dest
       value: Ethers5.BigNumber.from(0), // value
       func: Ethers5.utils.arrayify(
-        Utils.UsdcApproveCalldata(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS)
+        Utils.usdcApproveCalldata(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS)
       ), // func
     };
 
@@ -811,7 +804,7 @@ export const UserOperation = () => {
       dest: Ethers5.utils.getAddress(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS), // dest
       value: Ethers5.BigNumber.from(0), // value
       func: Ethers5.utils.arrayify(
-        Utils.UniswapSwapV2Calldata(
+        Utils.uniswapSwapV2Calldata(
           tokenAmount, // amountIn: uint256
           Utils.USDC_ADDRESS,
           Utils.WETH_ADDRESS,
@@ -839,6 +832,11 @@ export const UserOperation = () => {
     // 送交易前先更新前端 userOp 資訊
     setUserOp(formatUserOp(imBuilder.getOp()));
 
+    // 送交易前，先將上一次的 userOpHash 及 error 資訊清空
+    setUserOpHash("");
+    setTransactionHash("");
+    setError("");
+
     // 估算完 gas 後，Signer 並對 userOp 簽名，最後將組合完成的 userOp 傳送給 Bundler
     let res, ev;
     try {
@@ -853,15 +851,9 @@ export const UserOperation = () => {
       });
       // 等待 Bundler 送出交易完成
       ev = await res.wait();
-      // 清空錯誤訊息
-      setError("");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     }
-
-    // 在新一輪的交易完成後，先將上一次的 userOp 資訊清空
-    setUserOpHash("");
-    setTransactionHash("");
 
     if (res) {
       // 向 Bundler 提出 eth_getUserOperationReceipt 請求，以取得 gas 資訊
@@ -1018,117 +1010,6 @@ export const UserOperation = () => {
     },
     [tokenSymbol, toAddress, tokenAmount, tokenDecimal]
   );
-  // const handleUserOpAndTokenFormChange = (
-  //   event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  // ) => {
-  //   const { id, value } = event.target;
-  //   try {
-  //     switch (id) {
-  //       case "tokenSymbol":
-  //         setTokenSymbol(value.toString());
-  //         if (value.toString() === "ETH") {
-  //           setTokenAmount(Ethers5.BigNumber.from("100000000000000000"));
-  //           setDecimal(18);
-  //         }
-  //         if (value.toString() === "USDC") {
-  //           setTokenAmount(Ethers5.BigNumber.from(100000));
-  //           setDecimal(6);
-  //         }
-  //         setError("");
-  //         break;
-  //       case "toAddress":
-  //         setToAddress(Ethers5.utils.getAddress(value));
-  //         setError("");
-  //         break;
-  //       case "tokenAmount":
-  //         setTokenAmount(Ethers5.BigNumber.from(value));
-  //         setError("");
-  //         break;
-  //       case "sender":
-  //         setUserOp({
-  //           ...userOp,
-  //           sender: Ethers5.utils.getAddress(value),
-  //         });
-  //         setError("");
-  //         break;
-  //       case "nonce":
-  //         setUserOp({
-  //           ...userOp,
-  //           nonce: Ethers5.BigNumber.from(value),
-  //         });
-  //         setError("");
-  //         break;
-  //       case "initCode":
-  //         setUserOp({
-  //           ...userOp,
-  //           initCode: Ethers5.utils.hexlify(value),
-  //         });
-  //         setError("");
-  //         break;
-  //       case "callData":
-  //         setUserOp({
-  //           ...userOp,
-  //           callData: Ethers5.utils.hexlify(value),
-  //         });
-  //         setError("");
-  //         break;
-  //       case "callGasLimit":
-  //         setUserOp({
-  //           ...userOp,
-  //           callGasLimit: Ethers5.BigNumber.from(value),
-  //         });
-  //         setError("");
-  //         break;
-  //       case "verificationGasLimit":
-  //         setUserOp({
-  //           ...userOp,
-  //           verificationGasLimit: Ethers5.BigNumber.from(value),
-  //         });
-  //         setError("");
-  //         break;
-  //       case "preVerificationGas":
-  //         setUserOp({
-  //           ...userOp,
-  //           preVerificationGas: Ethers5.BigNumber.from(value),
-  //         });
-  //         setError("");
-  //         break;
-  //       case "maxFeePerGas":
-  //         setUserOp({
-  //           ...userOp,
-  //           maxFeePerGas: Ethers5.BigNumber.from(value),
-  //         });
-  //         setError("");
-  //         break;
-  //       case "maxPriorityFeePerGas":
-  //         setUserOp({
-  //           ...userOp,
-  //           maxPriorityFeePerGas: Ethers5.BigNumber.from(value),
-  //         });
-  //         setError("");
-  //         break;
-  //       case "paymasterAndData":
-  //         setUserOp({
-  //           ...userOp,
-  //           paymasterAndData: Ethers5.utils.hexlify(value),
-  //         });
-  //         setError("");
-  //         break;
-  //       case "signature":
-  //         setUserOp({
-  //           ...userOp,
-  //           signature: Ethers5.utils.hexlify(value),
-  //         });
-  //         setError("");
-  //         break;
-  //       default:
-  //         break;
-  //     }
-  //     setError(""); // 清除先前的錯誤訊息
-  //   } catch (err: unknown) {
-  //     setError(err instanceof Error ? err.message : String(err)); // 設置錯誤訊息狀態
-  //   }
-  // };
 
   const formMetaMask = () => {
     return (
@@ -1313,16 +1194,16 @@ export const UserOperation = () => {
           </table>
           <div>
             <button onClick={() => handleSigTransactionViaOnboarding()}>
-              Sign ETH/USDC transaction via OnboardingPaymaster
+              Transfer ETH/USDC via OnboardingPaymaster
             </button>
             <button onClick={() => handleSigTransactionViaPimlico()}>
-              Sign ETH/USDC transaction via PimlicoPaymaster
+              Transfer ETH/USDC via PimlicoPaymaster
             </button>
             <button onClick={() => handleSwapUsdcToEthViaOnboarding()}>
-              Swap USDC to ETH transaction via OnboardingPaymaster
+              Swap USDC → ETH via OnboardingPaymaster
             </button>
             <button onClick={() => handleSwapUsdcToEthViaPimlico()}>
-              Swap USDC to ETH transaction via PimlicoPaymaster
+              Swap USDC → ETH via PimlicoPaymaster
             </button>
           </div>
         </div>

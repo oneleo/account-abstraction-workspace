@@ -157,9 +157,6 @@ importers:
       '@typechain/ethers-v5':
         specifier: ^10.1.0
         version: 10.1.0(@ethersproject/abi@5.7.0)(@ethersproject/bytes@5.7.0)(@ethersproject/providers@5.7.2)(ethers@5.7.2)(typechain@8.1.0)(typescript@5.1.3)
-      '@uniswap/sdk-core':
-        specifier: ^4.0.1
-        version: 4.0.1
       '@uniswap/v2-periphery':
         specifier: 1.1.0-beta.0
         version: 1.1.0-beta.0
@@ -1939,18 +1936,6 @@ packages:
 
   /@uniswap/sdk-core@3.2.3:
     resolution: {integrity: sha512-ERVYKa5ENPwDA6/UZ45H1D5xIqTFcvDYpLxcncOzX8vRXuCAupMUoFFH5s/xx8IMcstONsAOPR1h4vRCzUkSsA==}
-    engines: {node: '>=10'}
-    dependencies:
-      '@ethersproject/address': 5.7.0
-      big.js: 5.2.2
-      decimal.js-light: 2.5.1
-      jsbi: 3.2.5
-      tiny-invariant: 1.3.1
-      toformat: 2.0.0
-    dev: true
-
-  /@uniswap/sdk-core@4.0.1:
-    resolution: {integrity: sha512-zCL2lemiEoiaRxRrM5V7oajadA2bJgf40lPh90taRIWgJoe0DN5KgLnz4G0N6uwbps9+YtZTocyztJslEsIkrg==}
     engines: {node: '>=10'}
     dependencies:
       '@ethersproject/address': 5.7.0

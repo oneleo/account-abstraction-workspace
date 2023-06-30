@@ -1,11 +1,9 @@
 import * as Ethers5 from "ethers";
 import * as UserOp from "userop";
 import * as UniswapSdk from "@uniswap/v3-sdk";
-import * as UniswapCore from "@uniswap/sdk-core";
 
 // Avoid using "as" to prevent errors related to "Should not import the named export 'xxx' (imported as 'xxx') from default-exporting module (only default export is available soon)".
 import jsonErc20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
-import jsonIUniswapV3Pool from "@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Pool.sol/IUniswapV3Pool.json";
 import jsonUniswapSwapRouterV2 from "@uniswap/v2-periphery/build/UniswapV2Router02.json";
 import jsonUniswapSwapRouterV3 from "@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json";
 
@@ -19,16 +17,6 @@ declare global {
 }
 
 // Uniswap Contract Addresses
-export const UNISWAP_FACTORY_V3_ADDRESS =
-  NETWORK_NAME === "mainnet"
-    ? "0x1F98431c8aD98523631AE4a59f267346ea31F984"
-    : "0x1F98431c8aD98523631AE4a59f267346ea31F984";
-
-export const UNISWAP_QUOTER_V3_ADDRESS =
-  NETWORK_NAME === "mainnet"
-    ? "0x61fFE014bA17989E743c5F6cB21bF9697530B21e"
-    : "0x61fFE014bA17989E743c5F6cB21bF9697530B21e";
-
 export const UNISWAP_SWAP_ROUTER_V3_ADDRESS =
   NETWORK_NAME === "mainnet"
     ? "0xE592427A0AEce92De3Edee1F18E0157C05861564"
@@ -209,7 +197,8 @@ export const bundlerUserOpReceipt = async (
   return (await (await fetch(bundlerUrl, opsUserOpReceipt)).json()).result;
 };
 
-export const UsdcApproveCalldata = (
+// Approve USDC
+export const usdcApproveCalldata = (
   spender: Ethers5.BytesLike,
   amount?: Ethers5.BigNumberish
 ) => {
@@ -220,7 +209,8 @@ export const UsdcApproveCalldata = (
   ]);
 };
 
-export const WethWithdrawCalldata = (amount: Ethers5.BigNumberish) => {
+// 此 WETH Withdraw 函數未測試過
+export const wethWithdrawCalldata = (amount: Ethers5.BigNumberish) => {
   const WETH_WITHDRAW_ABI = [
     {
       constant: false,
@@ -244,7 +234,7 @@ export const WethWithdrawCalldata = (amount: Ethers5.BigNumberish) => {
 };
 
 // Uniswap V3 只支援 Token 換成 WETH，但不支援 Token 換成 ETH
-export const UniswapSwapV3Calldata = (
+export const uniswapSwapV3Calldata = (
   tokenIn: Ethers5.BytesLike,
   tokenOut: Ethers5.BytesLike,
   recipient: Ethers5.BytesLike,
@@ -254,8 +244,8 @@ export const UniswapSwapV3Calldata = (
     jsonUniswapSwapRouterV3.abi
   );
   return ifaceUniswapSwapRouterV3.encodeFunctionData("exactInputSingle", [
-    USDC_ADDRESS, // tokenIn: address
-    WETH_ADDRESS, // tokenOut: address
+    tokenIn.toString(), // tokenIn: address
+    tokenOut.toString(), // tokenOut: address
     UniswapSdk.FeeAmount.MEDIUM, // fee: uint24
     recipient.toString(), // recipient: address
     Ethers5.BigNumber.from(Math.floor(Date.now() / 1000) + 600), // deadline: uint256
@@ -266,7 +256,7 @@ export const UniswapSwapV3Calldata = (
 };
 
 // Uniswap V2 支援 Token 直接換成 ETH
-export const UniswapSwapV2Calldata = (
+export const uniswapSwapV2Calldata = (
   amountIn: Ethers5.BigNumberish,
   tokenIn: Ethers5.BytesLike,
   tokenOut: Ethers5.BytesLike,
@@ -280,123 +270,6 @@ export const UniswapSwapV2Calldata = (
     Ethers5.BigNumber.from(0), // amountOutMin: uint256
     [tokenIn.toString(), tokenOut.toString()], // path: address[] calldata
     to.toString(), // to: address
-    Ethers5.BigNumber.from(Math.floor(Date.now() / 1000) + 600), // deadline: uint256 → 符合格式（至秒）：1687955738
+    Ethers5.BigNumber.from(Math.floor(Date.now() / 1000) + 600), // deadline: uint256 → 需符合「秒」級 timestamp 格式，如：1687654321
   ]);
-};
-
-export const getPoolInfo = async (
-  tokenIn: UniswapCore.Token,
-  tokenOut: UniswapCore.Token,
-  provider: Ethers5.providers.Provider,
-  poolFee: UniswapSdk.FeeAmount
-) => {
-  const currentPoolAddress = UniswapSdk.computePoolAddress({
-    factoryAddress: UNISWAP_FACTORY_V3_ADDRESS,
-    tokenA: tokenIn,
-    tokenB: tokenOut,
-    fee: poolFee,
-  });
-
-  const poolContract = new Ethers5.Contract(
-    currentPoolAddress,
-    jsonIUniswapV3Pool.abi,
-    provider
-  );
-
-  const [token0, token1, fee, tickSpacing, liquidity, slot0] =
-    await Promise.all([
-      poolContract.token0(),
-      poolContract.token1(),
-      poolContract.fee(),
-      poolContract.tickSpacing(),
-      poolContract.liquidity(),
-      poolContract.slot0(),
-    ]);
-
-  return {
-    token0,
-    token1,
-    fee,
-    tickSpacing,
-    liquidity,
-    sqrtPriceX96: slot0[0],
-    tick: slot0[1],
-  };
-};
-
-export const fromReadableAmount = (amount: number, decimals: number) => {
-  return Ethers5.utils.parseUnits(amount.toString(), decimals);
-};
-
-// Helper Quoting and Pool Functions
-export const getOutputQuote = async (
-  route: UniswapSdk.Route<UniswapCore.Currency, UniswapCore.Currency>,
-  provider: Ethers5.providers.Provider,
-  tokenIn: UniswapCore.Token,
-  amountIn: number
-) => {
-  const { calldata } = UniswapSdk.SwapQuoter.quoteCallParameters(
-    route,
-    UniswapCore.CurrencyAmount.fromRawAmount(
-      tokenIn,
-      fromReadableAmount(amountIn, tokenIn.decimals).toString()
-    ),
-    UniswapCore.TradeType.EXACT_INPUT,
-    {
-      useQuoterV2: true,
-    }
-  );
-
-  const quoteCallReturnData = await provider.call({
-    to: UNISWAP_QUOTER_V3_ADDRESS,
-    data: calldata,
-  });
-
-  return Ethers5.utils.defaultAbiCoder.decode(
-    ["uint256"],
-    quoteCallReturnData
-  )[0];
-};
-
-export const createTradePair = async (
-  tokenIn: UniswapCore.Token,
-  tokenOut: UniswapCore.Token,
-  amountIn: number,
-  provider: Ethers5.providers.Provider,
-  poolFee?: UniswapSdk.FeeAmount
-) => {
-  const poolInfo = await getPoolInfo(
-    tokenIn,
-    tokenOut,
-    provider,
-    poolFee || UniswapSdk.FeeAmount.HIGH
-  );
-
-  const pool = new UniswapSdk.Pool(
-    tokenIn,
-    tokenOut,
-    poolInfo.fee,
-    poolInfo.sqrtPriceX96.toString(),
-    poolInfo.liquidity.toString(),
-    poolInfo.tick
-  );
-
-  const swapRoute = new UniswapSdk.Route([pool], tokenIn, tokenOut);
-  const amountOut = await getOutputQuote(swapRoute, provider, tokenIn, 15);
-
-  const uncheckedTrade = UniswapSdk.Trade.createUncheckedTrade({
-    route: swapRoute,
-    inputAmount: UniswapCore.CurrencyAmount.fromRawAmount(
-      tokenIn,
-      fromReadableAmount(amountIn, tokenIn.decimals).toString()
-    ),
-    outputAmount: UniswapCore.CurrencyAmount.fromRawAmount(
-      tokenOut,
-      // JSBI.BigInt(amountOut),
-      amountOut.toString()
-    ),
-    tradeType: UniswapCore.TradeType.EXACT_INPUT,
-  });
-
-  return uncheckedTrade;
 };
