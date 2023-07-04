@@ -108,7 +108,7 @@ It will start up at [http://localhost:3000/account-abstraction](http://localhost
 % git remote show origin
 % git branch --set-upstream-to=origin/fix-pimlico-log fix-pimlico-log
 % git branch --set-upstream-to=origin/main main
-% git pull origin fix-pimlico-log # % git pull origin main
+% git pull origin main # % git pull origin fix-pimlico-log
 % git remote show origin
 % cd ../../../../
 

@@ -16,6 +16,35 @@ declare global {
   }
 }
 
+// Fee 的支付選項
+export enum feeOptions {
+  freeQuota,
+  withUsdc,
+  withEth,
+}
+
+// Token 的轉送行為
+export enum tokenActions {
+  sendEth,
+  sendUsdc,
+  swapUsdcToEth,
+}
+
+// 欲請 Account 執行的指令
+export type ExecuteArgs = {
+  dest: string;
+  value: Ethers5.BigNumber;
+  func: Uint8Array;
+};
+
+// imToken AA Server
+export const ETHERSPOT_RPC_URL = "https://goerli-bundler.etherspot.io/";
+export const UNSAFE_BUNDLER_RPC_URL =
+  "http://bundler.dev.rivo.network/unsafe/rpc"; // Stackup Unsafe Bundler
+export const SAFE_BUNDLER_RPC_URL = "http://bundler.dev.rivo.network/safe/rpc"; // Stackup Safe Bundler
+// export const BUNDLER_RPC_URL =
+//   "https://eth-goerli.g.alchemy.com/v2/<YOUR_ALCHEMY_KEY>"; // Alchemy
+
 // Uniswap Contract Addresses
 export const UNISWAP_SWAP_ROUTER_V3_ADDRESS =
   NETWORK_NAME === "mainnet"
@@ -60,8 +89,8 @@ export const PIMLICO_PAYMASTER_ADDRESS =
     : "0xEc43912D8C772A0Eba5a27ea5804Ba14ab502009";
 
 // Other Address
-// export const SIGNER6_ADDRESS = "0x81578FBe3Ca2941e50404Ec4E713625169C33e53"; // to or dest address
-export const SIGNER6_ADDRESS = "0xe82bd3Ed728f975A78315aC744a431B0080584cf"; // to or dest address
+export const SIGNER6_ADDRESS = "0x81578FBe3Ca2941e50404Ec4E713625169C33e53"; // to or dest address
+// export const SIGNER6_ADDRESS = "0xe82bd3Ed728f975A78315aC744a431B0080584cf"; // to or dest address
 
 export const logUserOp = (userOp: UserOp.IUserOperation) => {
   console.log(`// [Log] UserOp:\n`);
