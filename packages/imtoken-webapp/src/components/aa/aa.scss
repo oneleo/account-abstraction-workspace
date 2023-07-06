@@ -60,10 +60,12 @@
   }
 
   table {
+    display: flex;
     border-collapse: collapse;
     table-layout: auto;
     margin: 10px;
     text-align: left;
+    vertical-align: top;
   }
 
   select {
