@@ -16,6 +16,36 @@ declare global {
   }
 }
 
+// Fee 的支付選項
+export enum feeOptions {
+  freeQuota,
+  withUsdc,
+  withEth,
+}
+
+// Token 的轉送行為
+export enum tokenActions {
+  sendEth,
+  sendUsdc,
+  sendUsdcEth,
+  swapUsdcToEth,
+}
+
+// 欲請 Account 執行的指令
+export type ExecuteArgs = {
+  dest: string;
+  value: Ethers5.BigNumber;
+  func: Uint8Array;
+};
+
+// imToken AA Server
+export const ETHERSPOT_RPC_URL = "https://goerli-bundler.etherspot.io/";
+export const UNSAFE_BUNDLER_RPC_URL =
+  "http://bundler.dev.rivo.network/unsafe/rpc"; // Stackup Unsafe Bundler
+export const SAFE_BUNDLER_RPC_URL = "http://bundler.dev.rivo.network/safe/rpc"; // Stackup Safe Bundler
+// export const BUNDLER_RPC_URL =
+//   "https://eth-goerli.g.alchemy.com/v2/<YOUR_ALCHEMY_KEY>"; // Alchemy
+
 // Uniswap Contract Addresses
 export const UNISWAP_SWAP_ROUTER_V3_ADDRESS =
   NETWORK_NAME === "mainnet"
@@ -59,9 +89,19 @@ export const PIMLICO_PAYMASTER_ADDRESS =
     ? ""
     : "0xEc43912D8C772A0Eba5a27ea5804Ba14ab502009";
 
-// Other Address
-// export const SIGNER6_ADDRESS = "0x81578FBe3Ca2941e50404Ec4E713625169C33e53"; // to or dest address
-export const SIGNER6_ADDRESS = "0xe82bd3Ed728f975A78315aC744a431B0080584cf"; // to or dest address
+// Metamask Signer Address
+export const METAMASK_ADDRESS = [
+  "0x5704Cf1BaeAb8e893d8FF493E0d8CF711E4BDE99",
+  "0x05168c17d72e5E5d89243B26942ADDDC692dfB70",
+  "0x1935B14D6b74444383724229C0fB3449fa7e4C2f",
+  "0xD20Ac2d18A06E7E8248027856F32d4C00447Df39",
+  "0xbfeA97f38Da881D997Ae28924Af223aaa165EfA9",
+  "0xb6B4ac292B14e046DBEf91EB8308bC8Cb3211c92",
+  "0x81578FBe3Ca2941e50404Ec4E713625169C33e53",
+  "0xf4fE3D5e739ade5f870CF421521A6fFDb18D1EE5",
+  "0x875C1086703a4C307AC352F2908b436AF647cE8e",
+  "0x31F957f8e5BeCDD476f284187fAf088CC7A5DB67",
+];
 
 export const logUserOp = (userOp: UserOp.IUserOperation) => {
   console.log(`// [Log] UserOp:\n`);

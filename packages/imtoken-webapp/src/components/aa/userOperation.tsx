@@ -29,23 +29,9 @@ const NETWORK_NAME = Utils.NETWORK_NAME;
 const AA_DEFAULT_NONCE_KEY = 0;
 const ONBOARDING_PAYMASTER_ACTIVETY_ID = 0;
 
-// imToken AA Server
-const ETHERSPOT_RPC_URL = "https://goerli-bundler.etherspot.io/";
-const BUNDLER_RPC_URL = "http://bundler.dev.rivo.network/unsafe/rpc"; // Stackup Unsave
-// const BUNDLER_RPC_URL = "http://bundler.dev.rivo.network/safe/rpc"; // Stackup Safe
-// const BUNDLER_RPC_URL =
-//   "https://eth-goerli.g.alchemy.com/v2/<YOUR_ALCHEMY_KEY>"; // Alchemy
-
 const DEFAULT_REACT_USESTATE_PARAMS = {
   tokenAmount: 100000, // 1000000,
-  salt: 9876543210, // 999666333, 1234567890,
-};
-
-// 欲請 Account 執行的指令
-type ExecuteArgs = {
-  dest: string;
-  value: Ethers5.BigNumber;
-  func: Uint8Array;
+  salt: 98765, // 999666333, 1234567890,
 };
 
 // UserOp 預設值
@@ -67,29 +53,19 @@ export const UserOperation = () => {
   // -----------------
   // -- React Hooks --
   // -----------------
-  // UserOp State
-  const [userOp, setUserOp] =
-    React.useState<UserOp.IUserOperation>(defaultUserOp);
-  const [isUserOpVisible, setIsUserOpVisible] = React.useState(false);
-  const [userOpHash, setUserOpHash] = React.useState<string>("");
-  const [transactionHash, setTransactionHash] = React.useState<string>("");
-
-  // Token State
-  const [tokenSymbol, setTokenSymbol] = React.useState<string>("USDC");
-  const [toAddress, setToAddress] = React.useState<string>(
-    Utils.SIGNER6_ADDRESS
-  );
-  const [tokenAmount, setTokenAmount] = React.useState<Ethers5.BigNumberish>(
-    Ethers5.BigNumber.from(DEFAULT_REACT_USESTATE_PARAMS.tokenAmount)
-  );
-  const [tokenDecimal, setTokenDecimal] = React.useState<number>(6);
-
   // Metamask State
   const [metamaskAddress, setMetamaskAddress] = React.useState<string>("");
   const [metamaskBalanceEth, setMetamaskBalanceEth] =
     React.useState<Ethers5.BigNumberish>(Ethers5.BigNumber.from(0));
   const [metamaskBalanceUsdc, setMetamaskBalanceUsdc] =
     React.useState<Ethers5.BigNumberish>(Ethers5.BigNumber.from(0));
+
+  // UserOp State
+  const [userOp, setUserOp] =
+    React.useState<UserOp.IUserOperation>(defaultUserOp);
+  const [isUserOpVisible, setIsUserOpVisible] = React.useState(false);
+  const [userOpHash, setUserOpHash] = React.useState<string>("");
+  const [transactionHash, setTransactionHash] = React.useState<string>("");
 
   // AA Account State
   const [aADeploySalt, setAADeploySalt] = React.useState<Ethers5.BigNumberish>(
@@ -109,7 +85,31 @@ export const UserOperation = () => {
   const [aAOnboardingFreeQuota, setAAOnboardingFreeQuota] =
     React.useState<Ethers5.BigNumberish>(Ethers5.BigNumber.from(0));
 
+  // Token State
+  const [feeOptions, setFeeOptions] = React.useState<number>(
+    Utils.feeOptions.freeQuota
+  );
+  const [tokenActions, setTokenActions] = React.useState<number>(
+    Utils.tokenActions.sendUsdc
+  );
+  const [toAddress1, setToAddress1] = React.useState<string>(
+    Utils.METAMASK_ADDRESS[6]
+  );
+  const [tokenAmount1, setTokenAmount1] = React.useState<Ethers5.BigNumberish>(
+    Ethers5.BigNumber.from(DEFAULT_REACT_USESTATE_PARAMS.tokenAmount)
+  );
+  const [tokenDecimal1, setTokenDecimal1] = React.useState<number>(6);
+
+  // Token 2 State (The second token is fixed as ETH.)
+  const [toAddress2, setToAddress2] = React.useState<string>(
+    Utils.METAMASK_ADDRESS[6]
+  );
+  const [tokenAmount2, setTokenAmount2] = React.useState<Ethers5.BigNumberish>(
+    Ethers5.BigNumber.from("10000000000")
+  );
+
   // Other State
+  const [signButtonLock, setSignButtonLock] = React.useState(false);
   const [error, setError] = React.useState<string>("");
 
   // -------------
@@ -251,6 +251,7 @@ export const UserOperation = () => {
       console.log("please install MetaMask");
       return;
     }
+    console.log(`ALCHEMY_BUNDLER_URL: ${process.env.ALCHEMY_BUNDLER_URL}`);
     // We can do it using ethers.js
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
     provider
@@ -311,7 +312,7 @@ export const UserOperation = () => {
     const signer = provider.getSigner();
 
     // 在部署新 Account 的同時，進行 USDC 最大值的 Approve，以利後續向 PimlicoPaymaster 支付 USDC 手續費
-    const executeArgs: ExecuteArgs = {
+    const executeArgs: Utils.ExecuteArgs = {
       dest: Ethers5.utils.getAddress(Utils.USDC_ADDRESS), // dest
       value: Ethers5.BigNumber.from(0), // value
       func: Ethers5.utils.arrayify(
@@ -325,6 +326,7 @@ export const UserOperation = () => {
 
     // 建立一個新的 ImAccount Via Onboarding Paymaster 實例
     const onboardingPaymasterGenerator = new OnboardingPaymasterGenerator(
+      provider,
       Utils.ONBOARDING_PAYMASTER_ADDRESS,
       ONBOARDING_PAYMASTER_ACTIVETY_ID
     );
@@ -333,12 +335,12 @@ export const UserOperation = () => {
       factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
       paymasterMiddlewareGenerator: onboardingPaymasterGenerator,
       salt: aADeploySalt,
-      overrideBundlerEstimateRpc: ETHERSPOT_RPC_URL,
+      overrideBundlerEstimateRpc: Utils.ETHERSPOT_RPC_URL,
       // useOriginMaxFeePerGasToEstimate: true,
     };
     const imAccount = await ImAccount.init(
       signer,
-      BUNDLER_RPC_URL,
+      Utils.UNSAFE_BUNDLER_RPC_URL,
       imAccountOpts
     );
 
@@ -348,6 +350,7 @@ export const UserOperation = () => {
       [executeArgs.value],
       [executeArgs.func]
     );
+    // 備註：若在 PimlicoPaymaster 流程中 Approve USDC 無作用，因在 Validation 階段會因實際無 Approve USDC 而出現「AA33 reverted (or OOG)」錯誤
 
     // 送交易前，先更新前端 userOp 資訊
     setUserOp(formatUserOp(imBuilder.getOp()));
@@ -360,7 +363,7 @@ export const UserOperation = () => {
     // 估算完 gas 後，Signer 並對 userOp 簽名，最後將組合完成的 userOp 傳送給 Bundler
     let res, ev;
     try {
-      const client = await UserOp.Client.init(BUNDLER_RPC_URL);
+      const client = await UserOp.Client.init(Utils.UNSAFE_BUNDLER_RPC_URL);
       // 送交易前先更新前端 userOp 資訊
       setUserOp(formatUserOp(imBuilder.getOp()));
       res = await client.sendUserOperation(imBuilder, {
@@ -399,209 +402,186 @@ export const UserOperation = () => {
   }, [metamaskAddress, aADeploySalt]);
 
   // --------------------------------------
-  // ---- Onboarding Paymaster 按鈕事件 ----
+  // ------------ 整合型按鈕事件 ------------
   // -- 對 UserOp 簽名後傳送給 Bundler 上鏈 --
-  // --------- 轉送 ETH、USDC 交易 ---------
   // --------------------------------------
-  const handleSigTransactionViaOnboarding = React.useCallback(async () => {
+  const handleSigTransaction = React.useCallback(async () => {
     if (!window.ethereum) {
       return;
     }
+    // 送交易前，先鎖住按鈕，以避免重複送出交易
+    setSignButtonLock(true);
 
+    // 建立 Metamask Provider 實例
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
     const signer = provider.getSigner();
 
-    // 宣告一個空的 executeArgs
-    let executeArgs: ExecuteArgs = {
-      dest: Ethers5.utils.getAddress(Ethers5.constants.AddressZero), // dest
-      value: Ethers5.BigNumber.from(0), // value
-      func: Ethers5.utils.arrayify("0x"), // func
+    // 沒有 Paymaster 的 ImAccountOpts 參數
+    let imAccountOpts: IBuilderOpts = {
+      entryPoint: Utils.ENTRY_POINT_ADDRESS,
+      factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
+      salt: aADeploySalt,
+      overrideBundlerEstimateRpc: Utils.ETHERSPOT_RPC_URL,
     };
 
+    // 建立使用 Onboarding Paymaster 的 ImAccountOpts 參數
+    if (feeOptions === Utils.feeOptions.freeQuota) {
+      console.log(`Using Onboarding Paymaster`);
+      // 建立 Onboarding Paymaster 實例
+      const onboardingPaymasterGenerator = new OnboardingPaymasterGenerator(
+        provider,
+        Utils.ONBOARDING_PAYMASTER_ADDRESS,
+        ONBOARDING_PAYMASTER_ACTIVETY_ID
+      );
+
+      imAccountOpts = {
+        entryPoint: Utils.ENTRY_POINT_ADDRESS,
+        factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
+        paymasterMiddlewareGenerator: onboardingPaymasterGenerator,
+        salt: aADeploySalt,
+        overrideBundlerEstimateRpc: Utils.ETHERSPOT_RPC_URL,
+      };
+    }
+
+    // 建立使用 Pimlico Paymaster 的 ImAccountOpts 參數
+    if (feeOptions === Utils.feeOptions.withUsdc) {
+      console.log(`Using Pimlico Paymaster`);
+      // 建立 Pimlico Paymaster 實例
+      const pimlicoPaymasterGenerator = new PimlicoPaymasterGenerator(
+        provider,
+        Utils.PIMLICO_PAYMASTER_ADDRESS
+      );
+
+      imAccountOpts = {
+        entryPoint: Utils.ENTRY_POINT_ADDRESS,
+        factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
+        paymasterMiddlewareGenerator: pimlicoPaymasterGenerator,
+        salt: aADeploySalt,
+        overrideBundlerEstimateRpc: Utils.ETHERSPOT_RPC_URL,
+      };
+    }
+
+    // 透過 imAccountOpts 參數建立 imAccount 實例
+    const imAccount = await ImAccount.init(
+      signer,
+      Utils.UNSAFE_BUNDLER_RPC_URL,
+      imAccountOpts
+    );
+
+    // 宣告 2 個空的 executeArgs
+    let executeArgs: Utils.ExecuteArgs[] = [
+      {
+        dest: Ethers5.utils.getAddress(Ethers5.constants.AddressZero), // dest
+        value: Ethers5.BigNumber.from(0), // value
+        func: Ethers5.utils.arrayify("0x"), // func
+      },
+      {
+        dest: Ethers5.utils.getAddress(Ethers5.constants.AddressZero), // dest
+        value: Ethers5.BigNumber.from(0), // value
+        func: Ethers5.utils.arrayify("0x"), // func
+      },
+    ];
+
     // 建立轉送 ETH 的 callData
-    if (tokenSymbol === "ETH") {
-      executeArgs = {
-        dest: Ethers5.utils.getAddress(toAddress), // dest
-        value: Ethers5.BigNumber.from(tokenAmount), // value
+    if (tokenActions === Utils.tokenActions.sendEth) {
+      executeArgs[0] = {
+        dest: Ethers5.utils.getAddress(toAddress1), // dest
+        value: Ethers5.BigNumber.from(tokenAmount1), // value
         func: Ethers5.utils.arrayify("0x"), // func
       };
     }
 
     // 建立轉送 USDC 的 callData
-    if (tokenSymbol === "USDC") {
+    if (tokenActions === Utils.tokenActions.sendUsdc) {
       const ifaceErc20 = new Ethers5.utils.Interface(jsonErc20.abi);
       const encodeUsdcTransfer = ifaceErc20.encodeFunctionData("transfer", [
-        Ethers5.utils.getAddress(toAddress),
-        Ethers5.BigNumber.from(tokenAmount),
+        Ethers5.utils.getAddress(toAddress1),
+        Ethers5.BigNumber.from(tokenAmount1),
       ]);
-      executeArgs = {
+      executeArgs[0] = {
         dest: Ethers5.utils.getAddress(Utils.USDC_ADDRESS), // dest
         value: Ethers5.BigNumber.from(0), // value
         func: Ethers5.utils.arrayify(encodeUsdcTransfer), // func
       };
     }
 
-    if (debug) {
-      // 查看 executeArgs 內容
-      console.log(
-        `tokenSymbol: ${tokenSymbol}\nexecuteArgs: ${JSON.stringify(
-          executeArgs
-        )}`
-      );
-    }
-
-    // 建立一個新的 ImAccount Via OnboardingPaymaster 實例
-    const onboardingPaymasterGenerator = new OnboardingPaymasterGenerator(
-      Utils.ONBOARDING_PAYMASTER_ADDRESS,
-      ONBOARDING_PAYMASTER_ACTIVETY_ID
-    );
-    const imAccountOpts: IBuilderOpts = {
-      entryPoint: Utils.ENTRY_POINT_ADDRESS,
-      factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
-      paymasterMiddlewareGenerator: onboardingPaymasterGenerator,
-      salt: aADeploySalt,
-      overrideBundlerEstimateRpc: ETHERSPOT_RPC_URL,
-    };
-    const imAccount = await ImAccount.init(
-      signer,
-      BUNDLER_RPC_URL,
-      imAccountOpts
-    );
-
-    // 使用 executeArgs 建立初始的 UserOp（無 gas 與 signature 內容）
-    const imBuilder: UserOp.IUserOperationBuilder = imAccount.executeBatch(
-      [executeArgs.dest],
-      [executeArgs.value],
-      [executeArgs.func]
-    );
-
-    // 送交易前，先更新前端 userOp 資訊
-    setUserOp(formatUserOp(imBuilder.getOp()));
-
-    // 送交易前，先將上一次的 userOpHash 及 error 資訊清空
-    setUserOpHash("");
-    setTransactionHash("");
-    setError("");
-
-    // 估算完 gas 後，Signer 並對 userOp 簽名，最後將組合完成的 userOp 傳送給 Bundler
-    let res, ev;
-    try {
-      const client = await UserOp.Client.init(BUNDLER_RPC_URL);
-      // 簽名及送出交易給 Bundler
-      res = await client.sendUserOperation(imBuilder, {
-        onBuild: (op) => {
-          // 送交易中再更新一次實際上鏈的 userOp 資訊
-          setUserOp(formatUserOp(op));
-          console.log("Signed UserOperation:", op);
-        },
-      });
-      // 等待 Bundler 送出交易完成
-      ev = await res.wait();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-
-    if (res) {
-      if (res.userOpHash) {
-        // 設置 userOpHash
-        setUserOpHash(res.userOpHash);
-      }
-      // 給予 3 次 await res 的機會
-      for (let checkTime = 3; checkTime > 0; checkTime--) {
-        if (ev) {
-          if (ev.transactionHash) {
-            // 設置 transactionHash
-            setTransactionHash(ev.transactionHash);
-            break;
-          }
-        }
-        if (!ev) {
-          ev = await res.wait();
-        }
-        console.log(`checkTime: ${checkTime}`);
-      }
-    }
-  }, [userOp, aADeploySalt, tokenSymbol, toAddress, tokenAmount, tokenDecimal]);
-
-  // --------------------------------------
-  // ------ Pimlico Paymaster 按鈕事件 ------
-  // -- 對 UserOp 簽名後傳送給 Bundler 上鏈 --
-  // ---------- 轉送 ETH、USDC 交易 ----------
-  // --------------------------------------
-
-  // -- 備註：在 PimlicoPaymaster 流程中 Approve USDC 是無作用，
-  // -- 在 Validation 階段會因實際無 Approve USDC 而出現「AA33 reverted (or OOG)」錯誤
-  const handleSigTransactionViaPimlico = React.useCallback(async () => {
-    if (!window.ethereum) {
-      return;
-    }
-
-    const provider = new Ethers5.providers.Web3Provider(window.ethereum);
-    const signer = provider.getSigner();
-
-    // 宣告一個空的 executeArgs
-    let executeArgs: ExecuteArgs = {
-      dest: Ethers5.utils.getAddress(Ethers5.constants.AddressZero), // dest
-      value: Ethers5.BigNumber.from(0), // value
-      func: Ethers5.utils.arrayify("0x"), // func
-    };
-
-    // 建立轉送 ETH 的 callData
-    if (tokenSymbol === "ETH") {
-      executeArgs = {
-        dest: Ethers5.utils.getAddress(toAddress), // dest
-        value: Ethers5.BigNumber.from(tokenAmount), // value
-        func: Ethers5.utils.arrayify("0x"), // func
-      };
-    }
-
-    // 建立轉送 USDC 的 callData
-    if (tokenSymbol === "USDC") {
+    // 建立 Send USDC 及 Send ETH 的 callData
+    if (tokenActions === Utils.tokenActions.sendUsdcEth) {
+      // executeArgs1：Send USDC to toAddress1
       const ifaceErc20 = new Ethers5.utils.Interface(jsonErc20.abi);
       const encodeUsdcTransfer = ifaceErc20.encodeFunctionData("transfer", [
-        Ethers5.utils.getAddress(toAddress),
-        Ethers5.BigNumber.from(tokenAmount),
+        Ethers5.utils.getAddress(toAddress1),
+        Ethers5.BigNumber.from(tokenAmount1),
       ]);
-      executeArgs = {
+      executeArgs[0] = {
         dest: Ethers5.utils.getAddress(Utils.USDC_ADDRESS), // dest
         value: Ethers5.BigNumber.from(0), // value
         func: Ethers5.utils.arrayify(encodeUsdcTransfer), // func
       };
+
+      // executeArgs2：Send ETH toAddress2
+      executeArgs[1] = {
+        dest: Ethers5.utils.getAddress(toAddress2), // dest
+        value: Ethers5.BigNumber.from(tokenAmount2), // value
+        func: Ethers5.utils.arrayify("0x"), // func
+      };
+    }
+
+    // 建立 Approve USDC 及 Swap USDC to ETH 的 callData
+    if (tokenActions === Utils.tokenActions.swapUsdcToEth) {
+      // executeArgs1：Approve USDC 給 Uniswap Swap Router 合約
+      executeArgs[0] = {
+        dest: Ethers5.utils.getAddress(Utils.USDC_ADDRESS), // dest
+        value: Ethers5.BigNumber.from(0), // value
+        func: Ethers5.utils.arrayify(
+          Utils.usdcApproveCalldata(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS)
+        ), // func
+      };
+
+      // executeArgs2：透過 Uniswap Swap Router 合約 Swap USDC to ETH
+      executeArgs[1] = {
+        dest: Ethers5.utils.getAddress(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS), // dest
+        value: Ethers5.BigNumber.from(0), // value
+        func: Ethers5.utils.arrayify(
+          Utils.uniswapSwapV2Calldata(
+            tokenAmount1, // amountIn: uint256
+            Utils.USDC_ADDRESS,
+            Utils.WETH_ADDRESS,
+            imAccount.getSender() // to: address
+          )
+        ), // func
+      };
     }
 
     if (debug) {
       // 查看 executeArgs 內容
       console.log(
-        `tokenSymbol: ${tokenSymbol}\nexecuteArgs: ${JSON.stringify(
+        `tokenSymbol: ${tokenActions}\nexecuteArgs: ${JSON.stringify(
           executeArgs
         )}`
       );
     }
 
-    // 建立一個新的 ImAccount Via PimlicoPaymaster 實例
-    const pimlicoPaymasterGenerator = new PimlicoPaymasterGenerator(
-      provider,
-      Utils.PIMLICO_PAYMASTER_ADDRESS
-    );
-    const imAccountOpts: IBuilderOpts = {
-      entryPoint: Utils.ENTRY_POINT_ADDRESS,
-      factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
-      paymasterMiddlewareGenerator: pimlicoPaymasterGenerator,
-      salt: aADeploySalt,
-      overrideBundlerEstimateRpc: ETHERSPOT_RPC_URL,
-    };
-    const imAccount = await ImAccount.init(
-      signer,
-      BUNDLER_RPC_URL,
-      imAccountOpts
+    // 使用 executeArgs[0] 建立初始的 imBuilder 實例
+    // 註：此時 userOp 的 userOp.*Gas 與 userOp.signature 內容仍為無效資料
+    let imBuilder: UserOp.IUserOperationBuilder = imAccount.executeBatch(
+      [executeArgs[0].dest],
+      [executeArgs[0].value],
+      [executeArgs[0].func]
     );
 
-    // 使用 executeArgs 建立初始的 UserOp（無 gas 與 signature 內容）
-    const imBuilder: UserOp.IUserOperationBuilder = imAccount.executeBatch(
-      [executeArgs.dest],
-      [executeArgs.value],
-      [executeArgs.func]
-    );
+    // 若為 Send USDC and ETH 或 Swap USDC to ETH 請求，擴增 imBuilder 實例的操作
+    // 註：此時 userOp 的 userOp.*Gas 與 userOp.signature 內容仍為無效資料
+    if (
+      tokenActions === Utils.tokenActions.sendUsdcEth ||
+      tokenActions === Utils.tokenActions.swapUsdcToEth
+    ) {
+      imBuilder = imAccount.executeBatch(
+        [executeArgs[0].dest, executeArgs[1].dest],
+        [executeArgs[0].value, executeArgs[1].value],
+        [executeArgs[0].func, executeArgs[1].func]
+      );
+    }
 
     // 送交易前，先更新前端 userOp 資訊
     setUserOp(formatUserOp(imBuilder.getOp()));
@@ -612,9 +592,10 @@ export const UserOperation = () => {
     setError("");
 
     // 估算完 gas 後，Signer 並對 userOp 簽名，最後將組合完成的 userOp 傳送給 Bundler
+    // 註：執行完交易後，userOp 的 userOp.*Gas 與 userOp.signature 內容才是有效資料
     let res, ev;
     try {
-      const client = await UserOp.Client.init(BUNDLER_RPC_URL);
+      const client = await UserOp.Client.init(Utils.UNSAFE_BUNDLER_RPC_URL);
       // 簽名及送出交易給 Bundler
       res = await client.sendUserOperation(imBuilder, {
         onBuild: (op) => {
@@ -649,253 +630,19 @@ export const UserOperation = () => {
         console.log(`checkTime: ${checkTime}`);
       }
     }
-  }, [userOp, aADeploySalt, tokenSymbol, toAddress, tokenAmount, tokenDecimal]);
-
-  // --------------------------------------
-  // ---- Onboarding Paymaster 按鈕事件 ----
-  // -- 對 UserOp 簽名後傳送給 Bundler 上鏈 --
-  // --------- 用 USDC 換 ETH 交易 ---------
-  // --------------------------------------
-  const handleSwapUsdcToEthViaOnboarding = React.useCallback(async () => {
-    if (!window.ethereum) {
-      return;
-    }
-    // 因為這個函數是將 USDC 換成 ETH，所以要求使用者輸入明確的 USDC 數量
-    if (tokenSymbol !== "USDC") {
-      setError("Please select the USDC amount and try again.");
-      return;
-    }
-
-    const provider = new Ethers5.providers.Web3Provider(window.ethereum);
-    const signer = provider.getSigner();
-
-    // 建立一個新的 ImAccount Via OnboardingPaymaster 實例
-    const onboardingPaymasterGenerator = new OnboardingPaymasterGenerator(
-      Utils.ONBOARDING_PAYMASTER_ADDRESS,
-      ONBOARDING_PAYMASTER_ACTIVETY_ID
-    );
-    const imAccountOpts: IBuilderOpts = {
-      entryPoint: Utils.ENTRY_POINT_ADDRESS,
-      factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
-      paymasterMiddlewareGenerator: onboardingPaymasterGenerator,
-      salt: aADeploySalt,
-      overrideBundlerEstimateRpc: ETHERSPOT_RPC_URL,
-    };
-    const imAccount = await ImAccount.init(
-      signer,
-      BUNDLER_RPC_URL,
-      imAccountOpts
-    );
-
-    // executeArgs1：Approve USDC 給 Uniswap Swap Router 合約
-    const executeArgs1: ExecuteArgs = {
-      dest: Ethers5.utils.getAddress(Utils.USDC_ADDRESS), // dest
-      value: Ethers5.BigNumber.from(0), // value
-      func: Ethers5.utils.arrayify(
-        Utils.usdcApproveCalldata(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS)
-      ), // func
-    };
-
-    // executeArgs2：透過 Uniswap Swap Router 合約 Swap USDC to ETH
-    const executeArgs2: ExecuteArgs = {
-      dest: Ethers5.utils.getAddress(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS), // dest
-      value: Ethers5.BigNumber.from(0), // value
-      func: Ethers5.utils.arrayify(
-        Utils.uniswapSwapV2Calldata(
-          tokenAmount, // amountIn: uint256
-          Utils.USDC_ADDRESS,
-          Utils.WETH_ADDRESS,
-          imAccount.getSender() // to: address
-        )
-      ), // func
-    };
-
-    if (debug) {
-      // 查看 executeArgs 內容
-      console.log(
-        `executeArgs1: ${JSON.stringify(
-          executeArgs1
-        )}\nexecuteArgs2: ${JSON.stringify(executeArgs2)}`
-      );
-    }
-
-    // 使用 executeArgs 建立初始的 UserOp（無 gas 與 signature 內容）
-    const imBuilder: UserOp.IUserOperationBuilder = imAccount.executeBatch(
-      [executeArgs1.dest, executeArgs2.dest],
-      [executeArgs1.value, executeArgs2.value],
-      [executeArgs1.func, executeArgs2.func]
-    );
-
-    // 送交易前，先更新前端 userOp 資訊
-    setUserOp(formatUserOp(imBuilder.getOp()));
-
-    // 送交易前，先將上一次的 userOpHash 及 error 資訊清空
-    setUserOpHash("");
-    setTransactionHash("");
-    setError("");
-
-    // 估算完 gas 後，Signer 並對 userOp 簽名，最後將組合完成的 userOp 傳送給 Bundler
-    let res, ev;
-    try {
-      const client = await UserOp.Client.init(BUNDLER_RPC_URL);
-      // 簽名及送出交易給 Bundler
-      res = await client.sendUserOperation(imBuilder, {
-        onBuild: (op) => {
-          // 送交易中再更新一次實際上鏈的 userOp 資訊
-          setUserOp(formatUserOp(op));
-          console.log("Signed UserOperation:", op);
-        },
-      });
-      // 等待 Bundler 送出交易完成
-      ev = await res.wait();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-
-    if (res) {
-      if (res.userOpHash) {
-        // 設置 userOpHash
-        setUserOpHash(res.userOpHash);
-      }
-      // 給予 3 次 await res 的機會
-      for (let checkTime = 3; checkTime > 0; checkTime--) {
-        if (ev) {
-          if (ev.transactionHash) {
-            // 設置 transactionHash
-            setTransactionHash(ev.transactionHash);
-            break;
-          }
-        }
-        if (!ev) {
-          ev = await res.wait();
-        }
-        console.log(`checkTime: ${checkTime}`);
-      }
-    }
-  }, [userOp, aADeploySalt, tokenSymbol, toAddress, tokenAmount, tokenDecimal]);
-
-  // --------------------------------------
-  // ------ Pimlico Paymaster 按鈕事件 ------
-  // -- 對 UserOp 簽名後傳送給 Bundler 上鏈 --
-  // ---------- 用 USDC 換 ETH 交易 ----------
-  // --------------------------------------
-  const handleSwapUsdcToEthViaPimlico = React.useCallback(async () => {
-    if (!window.ethereum) {
-      return;
-    }
-    // 因為這個函數是將 USDC 換成 ETH，所以要求使用者輸入明確的 USDC 數量
-    if (tokenSymbol !== "USDC") {
-      setError("Please select the USDC amount and try again.");
-      return;
-    }
-
-    const provider = new Ethers5.providers.Web3Provider(window.ethereum);
-    const signer = provider.getSigner();
-
-    // 建立一個新的 ImAccount Via PimlicoPaymaster 實例
-    const pimlicoPaymasterGenerator = new PimlicoPaymasterGenerator(
-      provider,
-      Utils.PIMLICO_PAYMASTER_ADDRESS
-    );
-    const imAccountOpts: IBuilderOpts = {
-      entryPoint: Utils.ENTRY_POINT_ADDRESS,
-      factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
-      paymasterMiddlewareGenerator: pimlicoPaymasterGenerator,
-      salt: aADeploySalt,
-      overrideBundlerEstimateRpc: ETHERSPOT_RPC_URL,
-    };
-    const imAccount = await ImAccount.init(
-      signer,
-      BUNDLER_RPC_URL,
-      imAccountOpts
-    );
-
-    // executeArgs1：Approve USDC 給 Uniswap Swap Router 合約
-    const executeArgs1: ExecuteArgs = {
-      dest: Ethers5.utils.getAddress(Utils.USDC_ADDRESS), // dest
-      value: Ethers5.BigNumber.from(0), // value
-      func: Ethers5.utils.arrayify(
-        Utils.usdcApproveCalldata(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS)
-      ), // func
-    };
-
-    // executeArgs2：透過 Uniswap Swap Router 合約 Swap USDC to ETH
-    const executeArgs2: ExecuteArgs = {
-      dest: Ethers5.utils.getAddress(Utils.UNISWAP_SWAP_ROUTER_V2_ADDRESS), // dest
-      value: Ethers5.BigNumber.from(0), // value
-      func: Ethers5.utils.arrayify(
-        Utils.uniswapSwapV2Calldata(
-          tokenAmount, // amountIn: uint256
-          Utils.USDC_ADDRESS,
-          Utils.WETH_ADDRESS,
-          imAccount.getSender() // to: address
-        )
-      ), // func
-    };
-
-    if (debug) {
-      // 查看 executeArgs 內容
-      console.log(
-        `executeArgs1: ${JSON.stringify(
-          executeArgs1
-        )}\nexecuteArgs2: ${JSON.stringify(executeArgs2)}`
-      );
-    }
-
-    // 使用 executeArgs 建立初始的 UserOp（無 gas 與 signature 內容）
-    const imBuilder: UserOp.IUserOperationBuilder = imAccount.executeBatch(
-      [executeArgs1.dest, executeArgs2.dest],
-      [executeArgs1.value, executeArgs2.value],
-      [executeArgs1.func, executeArgs2.func]
-    );
-
-    // 送交易前先更新前端 userOp 資訊
-    setUserOp(formatUserOp(imBuilder.getOp()));
-
-    // 送交易前，先將上一次的 userOpHash 及 error 資訊清空
-    setUserOpHash("");
-    setTransactionHash("");
-    setError("");
-
-    // 估算完 gas 後，Signer 並對 userOp 簽名，最後將組合完成的 userOp 傳送給 Bundler
-    let res, ev;
-    try {
-      const client = await UserOp.Client.init(BUNDLER_RPC_URL);
-      // 簽名及送出交易給 Bundler
-      res = await client.sendUserOperation(imBuilder, {
-        onBuild: (op) => {
-          // 送交易中再更新一次實際上鏈的 userOp 資訊
-          setUserOp(formatUserOp(op));
-          console.log("Signed UserOperation:", op);
-        },
-      });
-      // 等待 Bundler 送出交易完成
-      ev = await res.wait();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-
-    if (res) {
-      if (res.userOpHash) {
-        // 設置 userOpHash
-        setUserOpHash(res.userOpHash);
-      }
-      // 給予 3 次 await res 的機會
-      for (let checkTime = 3; checkTime > 0; checkTime--) {
-        if (ev) {
-          if (ev.transactionHash) {
-            // 設置 transactionHash
-            setTransactionHash(ev.transactionHash);
-            break;
-          }
-        }
-        if (!ev) {
-          ev = await res.wait();
-        }
-        console.log(`checkTime: ${checkTime}`);
-      }
-    }
-  }, [userOp, aADeploySalt, tokenSymbol, toAddress, tokenAmount, tokenDecimal]);
+    // 送交易完成後，解開按鈕
+    setSignButtonLock(false);
+  }, [
+    userOp,
+    aADeploySalt,
+    tokenActions,
+    feeOptions,
+    toAddress1,
+    tokenAmount1,
+    tokenDecimal1,
+    toAddress2,
+    tokenAmount2,
+  ]);
 
   // ---------------------------------------------
   // ------------- React 改變更新事件 -------------
@@ -930,26 +677,63 @@ export const UserOperation = () => {
       const { id, value } = event.target;
       try {
         switch (id) {
-          case "tokenSymbol":
-            setTokenSymbol(value.toString());
-            if (value.toString() === "ETH") {
-              setTokenAmount(Ethers5.BigNumber.from("100000000000000000"));
-              setTokenDecimal(18);
+          case "feeOptions":
+            if (value === Utils.feeOptions.freeQuota.toString()) {
+              setFeeOptions(Utils.feeOptions.freeQuota);
             }
-            if (value.toString() === "USDC") {
-              setTokenAmount(Ethers5.BigNumber.from(100000));
-              setTokenDecimal(6);
+            if (value === Utils.feeOptions.withUsdc.toString()) {
+              setFeeOptions(Utils.feeOptions.withUsdc);
             }
+            if (value === Utils.feeOptions.withEth.toString()) {
+              setFeeOptions(Utils.feeOptions.withEth);
+            }
+            console.log(`value changed: ${Utils.feeOptions[Number(value)]}`);
+            setError("");
+            break;
+          case "tokenActions":
+            if (value === Utils.tokenActions.sendEth.toString()) {
+              setTokenActions(Utils.tokenActions.sendEth);
+              setTokenAmount1(Ethers5.BigNumber.from("10000000000"));
+              setTokenDecimal1(18);
+            }
+            if (value === Utils.tokenActions.sendUsdc.toString()) {
+              setTokenActions(Utils.tokenActions.sendUsdc);
+              setTokenAmount1(Ethers5.BigNumber.from(100000));
+              setTokenDecimal1(6);
+            }
+            if (value === Utils.tokenActions.sendUsdcEth.toString()) {
+              setTokenActions(Utils.tokenActions.sendUsdcEth);
+              // The first token is as USDC or ETH.
+              // The second token is fixed as ETH.
+              setTokenAmount1(Ethers5.BigNumber.from(100000));
+              setTokenDecimal1(6);
+            }
+            if (value === Utils.tokenActions.swapUsdcToEth.toString()) {
+              setTokenActions(Utils.tokenActions.swapUsdcToEth);
+              setTokenAmount1(Ethers5.BigNumber.from(100000));
+              setTokenDecimal1(6);
+            }
+            console.log(`value changed: ${Utils.tokenActions[Number(value)]}`);
             setError("");
             break;
           case "toAddress":
-            setToAddress(Ethers5.utils.getAddress(value));
+            setToAddress1(Ethers5.utils.getAddress(value));
             setError("");
             break;
           case "tokenAmount":
-            const realAmount = Ethers5.utils.parseUnits(value, tokenDecimal);
-            setTokenAmount(realAmount);
+            const realAmount = Ethers5.utils.parseUnits(value, tokenDecimal1);
+            setTokenAmount1(realAmount);
             console.log(`RealAmount: ${realAmount}`);
+            setError("");
+            break;
+          case "toAddress2":
+            setToAddress2(Ethers5.utils.getAddress(value));
+            setError("");
+            break;
+          case "tokenAmount2":
+            const realAmount2 = Ethers5.utils.parseUnits(value, 18);
+            setTokenAmount2(realAmount2);
+            console.log(`RealAmount: ${realAmount2}`);
             setError("");
             break;
           case "sender":
@@ -1037,7 +821,7 @@ export const UserOperation = () => {
         setError(err instanceof Error ? err.message : String(err)); // 設置錯誤訊息狀態
       }
     },
-    [tokenSymbol, toAddress, tokenAmount, tokenDecimal]
+    [tokenActions, toAddress1, tokenAmount1, tokenDecimal1]
   );
 
   const formMetaMask = () => {
@@ -1178,16 +962,84 @@ export const UserOperation = () => {
           <table>
             <tbody>
               <tr>
-                <td>Token:</td>
+                <td>Fee Options:</td>
                 <td>
                   <select
-                    id="tokenSymbol"
-                    value={`${tokenSymbol}`}
+                    id="feeOptions"
+                    defaultValue={`${Utils.feeOptions.freeQuota}`}
                     onChange={handleUserOpAndTokenFormChange}
                   >
-                    <option value="ETH">ETH</option>
-                    <option value="USDC">USDC</option>
+                    <option value={`${Utils.feeOptions.freeQuota}`}>
+                      Free quota (exceeding will be tipped in ETH)
+                    </option>
+                    <option value={`${Utils.feeOptions.withUsdc}`}>
+                      Tipping in USDC
+                    </option>
+                    <option value={`${Utils.feeOptions.withEth}`}>
+                      Tipping in ETH
+                    </option>
                   </select>
+                </td>
+                <td></td>
+              </tr>
+              <tr>
+                <td> ↳ Description:</td>
+                <td>
+                  <div>
+                    [Free Quota] = The onboarding paymaster will cover the ETH
+                    transaction fees within the allocated quota.
+                  </div>
+                  <div>
+                    [Tipping in USDC] = Utilize Pimlico Paymaster to collect
+                    USDC and use it to pay for the ETH transaction fees.
+                  </div>
+                  <div>
+                    [Tipping in ETH] = No paymaster is assigned for covering the
+                    transaction fees in ETH.
+                  </div>
+                </td>
+                <td></td>
+              </tr>
+              <tr>
+                <td>Token Actions:</td>
+                <td>
+                  <select
+                    id="tokenActions"
+                    defaultValue={`${Utils.tokenActions.sendUsdc}`}
+                    onChange={handleUserOpAndTokenFormChange}
+                  >
+                    <option value={`${Utils.tokenActions.sendEth}`}>
+                      Send ETH
+                    </option>
+                    <option value={`${Utils.tokenActions.sendUsdc}`}>
+                      Send USDC
+                    </option>
+                    <option value={`${Utils.tokenActions.sendUsdcEth}`}>
+                      Send USDC & ETH
+                    </option>
+                    <option value={`${Utils.tokenActions.swapUsdcToEth}`}>
+                      Swap USDC to ETH
+                    </option>
+                  </select>
+                </td>
+                <td></td>
+              </tr>
+              <tr>
+                <td> ↳ Description:</td>
+                <td>
+                  <div>[Send ETH] = Transfer ETH to a specified address.</div>
+                  <div>
+                    [Send USDC] = Call the transfer() function of the USDC ERC20
+                    contract.
+                  </div>
+                  <div>
+                    [Send USDC & ETH] = Send USDC and ETH in a{" "}
+                    <strong>single</strong> transaction.
+                  </div>
+                  <div>
+                    [Swap USDC to ETH] = Approve USDC to Uniswap and swap it for
+                    ETH in a <strong>single</strong> transaction.
+                  </div>
                 </td>
                 <td></td>
               </tr>
@@ -1197,9 +1049,17 @@ export const UserOperation = () => {
                   <input
                     type="text"
                     id="toAddress"
-                    value={`${toAddress}`}
+                    // 當使用者想用 USDC 換 ETH 時，toAddress 就必定是 Account 本身
+                    disabled={
+                      !(tokenActions !== Utils.tokenActions.swapUsdcToEth)
+                    }
+                    value={`${
+                      tokenActions !== Utils.tokenActions.swapUsdcToEth
+                        ? toAddress1
+                        : aAAccountAddress
+                    }`}
                     onChange={handleUserOpAndTokenFormChange}
-                  />{" "}
+                  />
                   Or this Account address itself when swapping USDC to ETH
                 </td>
                 <td></td>
@@ -1211,30 +1071,65 @@ export const UserOperation = () => {
                     type="text"
                     id="tokenAmount"
                     value={`${Ethers5.utils.formatUnits(
-                      tokenAmount,
-                      tokenDecimal
+                      tokenAmount1,
+                      tokenDecimal1
                     )}`}
                     onChange={handleUserOpAndTokenFormChange}
                   />
+                  {tokenActions === Utils.tokenActions.sendEth ? `ETH` : `USDC`}
+                </td>
+                <td></td>
+              </tr>
+              {tokenActions === Utils.tokenActions.sendUsdcEth && (
+                <>
+                  <tr>
+                    <td>To(2):</td>
+                    <td>
+                      <input
+                        type="text"
+                        id="toAddress2"
+                        value={`${toAddress2}`}
+                        onChange={handleUserOpAndTokenFormChange}
+                      />
+                    </td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td>Amount(2):</td>
+                    <td>
+                      <input
+                        type="text"
+                        id="tokenAmount2"
+                        value={`${Ethers5.utils.formatUnits(tokenAmount2, 18)}`}
+                        onChange={handleUserOpAndTokenFormChange}
+                      />
+                      ETH
+                    </td>
+                    <td></td>
+                  </tr>
+                </>
+              )}
+              <tr>
+                <td>
+                  <button
+                    disabled={signButtonLock}
+                    type="button"
+                    onClick={() => handleSigTransaction()}
+                  >
+                    Sign, Validate and Send Transaction
+                  </button>
+                </td>
+                <td>
+                  <span>
+                    {error && (
+                      <span className="Error">{`error: ${error}`}</span>
+                    )}
+                  </span>
                 </td>
                 <td></td>
               </tr>
             </tbody>
           </table>
-          <div>
-            <button onClick={() => handleSigTransactionViaOnboarding()}>
-              Transfer ETH/USDC via OnboardingPaymaster
-            </button>
-            <button onClick={() => handleSigTransactionViaPimlico()}>
-              Transfer ETH/USDC via PimlicoPaymaster
-            </button>
-            <button onClick={() => handleSwapUsdcToEthViaOnboarding()}>
-              Swap USDC → ETH via OnboardingPaymaster
-            </button>
-            <button onClick={() => handleSwapUsdcToEthViaPimlico()}>
-              Swap USDC → ETH via PimlicoPaymaster
-            </button>
-          </div>
         </div>
       </>
     );
@@ -1448,9 +1343,6 @@ export const UserOperation = () => {
               </table>
             </>
           )}
-          <div>
-            {error && <text className="Error">{`error: ${error}`}</text>}
-          </div>
         </div>
       </>
     );
