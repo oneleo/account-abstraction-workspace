@@ -31,7 +31,7 @@ const ONBOARDING_PAYMASTER_ACTIVETY_ID = 0;
 
 const DEFAULT_REACT_USESTATE_PARAMS = {
   tokenAmount: 100000, // 1000000,
-  salt: 98765432, // 999666333, 1234567890,
+  salt: 98765, // 999666333, 1234567890,
 };
 
 // UserOp 預設值
@@ -109,6 +109,7 @@ export const UserOperation = () => {
   );
 
   // Other State
+  const [signButtonLock, setSignButtonLock] = React.useState(false);
   const [error, setError] = React.useState<string>("");
 
   // -------------
@@ -250,6 +251,7 @@ export const UserOperation = () => {
       console.log("please install MetaMask");
       return;
     }
+    console.log(`ALCHEMY_BUNDLER_URL: ${process.env.ALCHEMY_BUNDLER_URL}`);
     // We can do it using ethers.js
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
     provider
@@ -407,6 +409,8 @@ export const UserOperation = () => {
     if (!window.ethereum) {
       return;
     }
+    // 送交易前，先鎖住按鈕，以避免重複送出交易
+    setSignButtonLock(true);
 
     // 建立 Metamask Provider 實例
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
@@ -626,7 +630,8 @@ export const UserOperation = () => {
         console.log(`checkTime: ${checkTime}`);
       }
     }
-    console.log(``);
+    // 送交易完成後，解開按鈕
+    setSignButtonLock(false);
   }, [
     userOp,
     aADeploySalt,
@@ -1106,7 +1111,11 @@ export const UserOperation = () => {
               )}
               <tr>
                 <td>
-                  <button onClick={() => handleSigTransaction()}>
+                  <button
+                    disabled={signButtonLock}
+                    type="button"
+                    onClick={() => handleSigTransaction()}
+                  >
                     Sign, Validate and Send Transaction
                   </button>
                 </td>

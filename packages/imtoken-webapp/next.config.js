@@ -1,4 +1,8 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {}
+const nextConfig = {
+  env: {
+    ALCHEMY_BUNDLER_URL: process.env.ALCHEMY_BUNDLER_URL,
+  },
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
