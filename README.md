@@ -3,6 +3,11 @@
 ## 1. Initialize
 
 ```shell
+# Install Foundry
+% curl -L https://foundry.paradigm.xyz | bash
+% foundryup
+
+# Download imToken AA Repo
 % git submodule sync --recursive && git submodule update --init --recursive
 % pnpm install
 ```
