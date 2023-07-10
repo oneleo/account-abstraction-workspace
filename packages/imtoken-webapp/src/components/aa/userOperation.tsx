@@ -60,6 +60,11 @@ export const UserOperation = () => {
   const [metamaskBalanceUsdc, setMetamaskBalanceUsdc] =
     React.useState<Ethers5.BigNumberish>(Ethers5.BigNumber.from(0));
 
+  // Bundler State
+  const [bundlerRpc, setBundlerRpc] = React.useState<number>(
+    Utils.bundlerRpc.imTokenUnSafe
+  );
+
   // UserOp State
   const [userOp, setUserOp] =
     React.useState<UserOp.IUserOperation>(defaultUserOp);
@@ -238,7 +243,7 @@ export const UserOperation = () => {
     return function () {
       clearInterval(id);
     };
-  }, [metamaskAddress, aADeploySalt]); // 當與 Metamask 連接，並取得帳號地址時啟動
+  }, [metamaskAddress, aADeploySalt, bundlerRpc]); // 當與 Metamask 連接，並取得帳號地址時啟動
 
   // ----------------------
   // -- React 一般按鈕事件 --
@@ -251,7 +256,6 @@ export const UserOperation = () => {
       console.log("please install MetaMask");
       return;
     }
-    console.log(`ALCHEMY_BUNDLER_URL: ${process.env.ALCHEMY_BUNDLER_URL}`);
     // We can do it using ethers.js
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
     provider
@@ -311,6 +315,17 @@ export const UserOperation = () => {
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
     const signer = provider.getSigner();
 
+    // 說定轉發交易的 Bundler
+    let bundler = Utils.IMTOKEN_UNSAFE_BUNDLER_URL;
+    if (bundlerRpc === Utils.bundlerRpc.imTokenSafe) {
+      bundler = Utils.IMTOKEN_SAFE_BUNDLER_URL;
+    }
+    if (bundlerRpc === Utils.bundlerRpc.alchemySafe) {
+      bundler = Utils.ALCHEMY_BUNDLER_URL
+        ? Utils.ALCHEMY_BUNDLER_URL
+        : Utils.IMTOKEN_UNSAFE_BUNDLER_URL;
+    }
+
     // 在部署新 Account 的同時，進行 USDC 最大值的 Approve，以利後續向 PimlicoPaymaster 支付 USDC 手續費
     const executeArgs: Utils.ExecuteArgs = {
       dest: Ethers5.utils.getAddress(Utils.USDC_ADDRESS), // dest
@@ -319,7 +334,10 @@ export const UserOperation = () => {
         Utils.usdcApproveCalldata(Utils.PIMLICO_PAYMASTER_ADDRESS)
       ), // func
     };
+
     if (debug) {
+      // 查看使用哪一個 bundler
+      console.log(`bundler: ${Utils.bundlerRpc[bundlerRpc]}`);
       // 查看 executeArgs 內容
       console.log(`executeArgs: ${JSON.stringify(executeArgs)}`);
     }
@@ -335,14 +353,10 @@ export const UserOperation = () => {
       factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
       paymasterMiddlewareGenerator: onboardingPaymasterGenerator,
       salt: aADeploySalt,
-      overrideBundlerEstimateRpc: Utils.ETHERSPOT_RPC_URL,
+      overrideBundlerEstimateRpc: Utils.ETHERSPOT_SAFE_BUNDLER_URL,
       // useOriginMaxFeePerGasToEstimate: true,
     };
-    const imAccount = await ImAccount.init(
-      signer,
-      Utils.UNSAFE_BUNDLER_RPC_URL,
-      imAccountOpts
-    );
+    const imAccount = await ImAccount.init(signer, bundler, imAccountOpts);
 
     // 使用 executeArgs 建立初始的 UserOp（無 gas 與 signature 內容）
     const imBuilder: UserOp.IUserOperationBuilder = imAccount.executeBatch(
@@ -363,7 +377,7 @@ export const UserOperation = () => {
     // 估算完 gas 後，Signer 並對 userOp 簽名，最後將組合完成的 userOp 傳送給 Bundler
     let res, ev;
     try {
-      const client = await UserOp.Client.init(Utils.UNSAFE_BUNDLER_RPC_URL);
+      const client = await UserOp.Client.init(bundler);
       // 送交易前先更新前端 userOp 資訊
       setUserOp(formatUserOp(imBuilder.getOp()));
       res = await client.sendUserOperation(imBuilder, {
@@ -416,12 +430,23 @@ export const UserOperation = () => {
     const provider = new Ethers5.providers.Web3Provider(window.ethereum);
     const signer = provider.getSigner();
 
+    // 說定轉發交易的 Bundler
+    let bundler = Utils.IMTOKEN_UNSAFE_BUNDLER_URL;
+    if (bundlerRpc === Utils.bundlerRpc.imTokenSafe) {
+      bundler = Utils.IMTOKEN_SAFE_BUNDLER_URL;
+    }
+    if (bundlerRpc === Utils.bundlerRpc.alchemySafe) {
+      bundler = Utils.ALCHEMY_BUNDLER_URL
+        ? Utils.ALCHEMY_BUNDLER_URL
+        : Utils.IMTOKEN_UNSAFE_BUNDLER_URL;
+    }
+
     // 沒有 Paymaster 的 ImAccountOpts 參數
     let imAccountOpts: IBuilderOpts = {
       entryPoint: Utils.ENTRY_POINT_ADDRESS,
       factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
       salt: aADeploySalt,
-      overrideBundlerEstimateRpc: Utils.ETHERSPOT_RPC_URL,
+      overrideBundlerEstimateRpc: Utils.ETHERSPOT_SAFE_BUNDLER_URL,
     };
 
     // 建立使用 Onboarding Paymaster 的 ImAccountOpts 參數
@@ -439,7 +464,7 @@ export const UserOperation = () => {
         factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
         paymasterMiddlewareGenerator: onboardingPaymasterGenerator,
         salt: aADeploySalt,
-        overrideBundlerEstimateRpc: Utils.ETHERSPOT_RPC_URL,
+        overrideBundlerEstimateRpc: Utils.ETHERSPOT_SAFE_BUNDLER_URL,
       };
     }
 
@@ -457,16 +482,12 @@ export const UserOperation = () => {
         factory: Utils.ACCOUNT_FACTORY_PROXY_ADDRESS,
         paymasterMiddlewareGenerator: pimlicoPaymasterGenerator,
         salt: aADeploySalt,
-        overrideBundlerEstimateRpc: Utils.ETHERSPOT_RPC_URL,
+        overrideBundlerEstimateRpc: Utils.ETHERSPOT_SAFE_BUNDLER_URL,
       };
     }
 
     // 透過 imAccountOpts 參數建立 imAccount 實例
-    const imAccount = await ImAccount.init(
-      signer,
-      Utils.UNSAFE_BUNDLER_RPC_URL,
-      imAccountOpts
-    );
+    const imAccount = await ImAccount.init(signer, bundler, imAccountOpts);
 
     // 宣告 2 個空的 executeArgs
     let executeArgs: Utils.ExecuteArgs[] = [
@@ -554,6 +575,8 @@ export const UserOperation = () => {
     }
 
     if (debug) {
+      // 查看使用哪一個 bundler
+      console.log(`bundler: ${Utils.bundlerRpc[bundlerRpc]}`);
       // 查看 executeArgs 內容
       console.log(
         `tokenSymbol: ${tokenActions}\nexecuteArgs: ${JSON.stringify(
@@ -595,7 +618,7 @@ export const UserOperation = () => {
     // 註：執行完交易後，userOp 的 userOp.*Gas 與 userOp.signature 內容才是有效資料
     let res, ev;
     try {
-      const client = await UserOp.Client.init(Utils.UNSAFE_BUNDLER_RPC_URL);
+      const client = await UserOp.Client.init(bundler);
       // 簽名及送出交易給 Bundler
       res = await client.sendUserOperation(imBuilder, {
         onBuild: (op) => {
@@ -635,6 +658,7 @@ export const UserOperation = () => {
   }, [
     userOp,
     aADeploySalt,
+    bundlerRpc,
     tokenActions,
     feeOptions,
     toAddress1,
@@ -677,6 +701,33 @@ export const UserOperation = () => {
       const { id, value } = event.target;
       try {
         switch (id) {
+          case "bundlerRpc":
+            if (value === Utils.bundlerRpc.imTokenUnSafe.toString()) {
+              setBundlerRpc(Utils.bundlerRpc.imTokenUnSafe);
+              setError("");
+            }
+            if (value === Utils.bundlerRpc.imTokenSafe.toString()) {
+              setBundlerRpc(Utils.bundlerRpc.imTokenSafe);
+              setError("");
+            }
+            if (value === Utils.bundlerRpc.alchemySafe.toString()) {
+              setBundlerRpc(Utils.bundlerRpc.alchemySafe);
+              setError("");
+            }
+            // 如果環境變數找不到 Alchemy 的 RPC，重設 bundlerPpc
+            if (
+              value === Utils.bundlerRpc.alchemySafe.toString() &&
+              !Utils.ALCHEMY_BUNDLER_URL
+            ) {
+              setBundlerRpc(Utils.bundlerRpc.imTokenUnSafe);
+              setError(
+                `Alchemy Bundler is undefined. Please set Alchemy RPC in the .env.local file. Your Bundler PRC is currently set to imTokenUnSafe.`
+              );
+            }
+            console.log(
+              `bundlerRpc changed: ${Utils.bundlerRpc[Number(value)]}`
+            );
+            break;
           case "feeOptions":
             if (value === Utils.feeOptions.freeQuota.toString()) {
               setFeeOptions(Utils.feeOptions.freeQuota);
@@ -816,7 +867,6 @@ export const UserOperation = () => {
           default:
             break;
         }
-        setError(""); // 清除先前的錯誤訊息
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : String(err)); // 設置錯誤訊息狀態
       }
@@ -878,6 +928,26 @@ export const UserOperation = () => {
           <table>
             <tbody>
               <tr>
+                <td>Bundler:</td>
+                <td>
+                  <select
+                    id="bundlerRpc"
+                    defaultValue={`${Utils.bundlerRpc.imTokenUnSafe}`}
+                    onChange={handleUserOpAndTokenFormChange}
+                  >
+                    <option value={`${Utils.bundlerRpc.imTokenUnSafe}`}>
+                      imToken Unsafe RPC
+                    </option>
+                    <option value={`${Utils.bundlerRpc.imTokenSafe}`}>
+                      imToken Safe RPC
+                    </option>
+                    <option value={`${Utils.bundlerRpc.alchemySafe}`}>
+                      Alchemy Safe RPC
+                    </option>
+                  </select>
+                </td>
+              </tr>
+              <tr>
                 <td>Salt:</td>
                 <td>
                   <input
@@ -918,11 +988,15 @@ export const UserOperation = () => {
                   aANonce
                 ).key.toString()}] = ${Utils.decodeAANonce(
                   aANonce
-                ).seq.toString()} = Seq (Free Quota = ${Ethers5.BigNumber.from(
-                  aAOnboardingFreeQuota
-                )
-                  .sub(Utils.decodeAANonce(aANonce).seq)
-                  .toString()})`}</td>
+                ).seq.toString()} = Seq (Free Quota = ${
+                  Ethers5.BigNumber.from(aAOnboardingFreeQuota)
+                    .sub(Utils.decodeAANonce(aANonce).seq)
+                    .gte(0)
+                    ? Ethers5.BigNumber.from(aAOnboardingFreeQuota)
+                        .sub(Utils.decodeAANonce(aANonce).seq)
+                        .toString()
+                    : "0"
+                })`}</td>
               </tr>
               <tr>
                 <td>Account Balance(ETH):</td>

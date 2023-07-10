@@ -16,6 +16,13 @@ declare global {
   }
 }
 
+// Bundler 選項
+export enum bundlerRpc {
+  imTokenUnSafe,
+  imTokenSafe,
+  alchemySafe,
+}
+
 // Fee 的支付選項
 export enum feeOptions {
   freeQuota,
@@ -39,12 +46,13 @@ export type ExecuteArgs = {
 };
 
 // imToken AA Server
-export const ETHERSPOT_RPC_URL = "https://goerli-bundler.etherspot.io/";
-export const UNSAFE_BUNDLER_RPC_URL =
+export const ETHERSPOT_SAFE_BUNDLER_URL =
+  "https://goerli-bundler.etherspot.io/";
+export const IMTOKEN_UNSAFE_BUNDLER_URL =
   "http://bundler.dev.rivo.network/unsafe/rpc"; // Stackup Unsafe Bundler
-export const SAFE_BUNDLER_RPC_URL = "http://bundler.dev.rivo.network/safe/rpc"; // Stackup Safe Bundler
-// export const BUNDLER_RPC_URL =
-//   "https://eth-goerli.g.alchemy.com/v2/<YOUR_ALCHEMY_KEY>"; // Alchemy
+export const IMTOKEN_SAFE_BUNDLER_URL =
+  "http://bundler.dev.rivo.network/safe/rpc"; // Stackup Safe Bundler
+export const ALCHEMY_BUNDLER_URL = process.env.ALCHEMY_BUNDLER_URL; // Alchemy
 
 // Uniswap Contract Addresses
 export const UNISWAP_SWAP_ROUTER_V3_ADDRESS =
