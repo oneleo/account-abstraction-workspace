@@ -126,6 +126,8 @@ It will start up at [http://localhost:3000/account-abstraction](http://localhost
 % PKG3="imtoken-webapp" && pnpm --filter ${PKG3} dev
 ```
 
+![demo](images/demo.png "Demo")
+
 ## 6. Other tests
 
 ```shell
